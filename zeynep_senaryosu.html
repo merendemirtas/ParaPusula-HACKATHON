@@ -1,0 +1,142 @@
+<style>
+.step-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.step-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--color-border-secondary); background:var(--color-background-secondary); color:var(--color-text-secondary); font-size:12px; cursor:pointer; transition:all .2s; }
+.step-btn.active { background:var(--color-background-primary); border-color:var(--color-border-primary); color:var(--color-text-primary); font-weight:500; }
+.card { background:var(--color-background-secondary); border:1px solid var(--color-border-tertiary); border-radius:12px; padding:20px 24px; }
+.card-label { font-size:11px; font-weight:500; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+.card-title { font-size:15px; font-weight:500; color:var(--color-text-primary); margin-bottom:10px; }
+.card-body { font-size:13px; color:var(--color-text-secondary); line-height:1.65; margin-bottom:16px; }
+.feature-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:500; margin:3px 3px 3px 0; background:var(--color-background-primary); border:1px solid var(--color-border-secondary); color:var(--color-text-secondary); }
+.ai-bubble { background:var(--color-background-primary); border-left:3px solid #7F77DD; border-radius:0 8px 8px 0; padding:10px 14px; margin-top:12px; font-size:12px; color:var(--color-text-secondary); font-style:italic; line-height:1.6; }
+.insight { background:var(--color-background-primary); border:1px solid var(--color-border-tertiary); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:12px; color:var(--color-text-secondary); }
+.insight-label { font-size:10px; font-weight:500; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+.progress { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+.prog-dot { width:8px; height:8px; border-radius:50%; background:var(--color-border-secondary); transition:background .3s; }
+.prog-dot.done { background:#1D9E75; }
+.prog-dot.active { background:#7F77DD; }
+</style>
+
+<div style="padding:4px 0 0">
+<div class="progress" id="prog"></div>
+<div class="step-nav" id="nav"></div>
+<div id="content"></div>
+<div style="display:flex;gap:10px;margin-top:16px;">
+  <button onclick="prev()" id="btn-prev" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-secondary);font-size:13px;cursor:pointer;">Önceki</button>
+  <button onclick="next()" id="btn-next" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--color-border-primary);background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;cursor:pointer;font-weight:500;">Sonraki</button>
+</div>
+</div>
+
+<script>
+const steps = [
+  {
+    label: "Durum",
+    title: "Zeynep, 24 — 'Maaş nereye gidiyor?'",
+    body: "İlk işinde çalışıyor. Aylık 32.000₺ maaş alıyor, iyi görünüyor ama her ay 25'inde cüzdanı boşalıyor. 2 kredi kartında toplam 14.000₺ borç birikmiş. Asgari ödeme yapıyor çünkü 'zaten az borç' diye düşünüyor. Uygulamayı indiriyor çünkü bir arkadaşı 'artık ne harcadığımı görüyorum' dedi.",
+    features: [],
+    ai: null,
+    insight: null
+  },
+  {
+    label: "Onboarding",
+    title: "3 soru, para kişiliği belirleniyor",
+    body: "Uygulama Zeynep'e 3 soru soruyor: Ay sonu para bitiyor mu? Alışveriş yaparken genellikle anlık karar mı veriyorsun? Gelecek ay için para ayırıyor musun? Zeynep'in cevapları onu 'dürtüsel harcayan' profiline yerleştiriyor.",
+    features: ["Para kişiliği analizi"],
+    ai: "Zeynep, seninle dürüst olacağım — harcama alışkanlıkların şu an seni yavaşlatıyor. Ama bu değişebilir, beraber bakalım.",
+    insight: null
+  },
+  {
+    label: "PDF yükleme",
+    title: "Banka ekstresi yükleniyor",
+    body: "Zeynep Garanti'deki hesabının son 3 aylık ekstresini yüklüyor. AI birkaç saniye içinde tüm işlemleri kategorize ediyor. Zeynep ilk kez kendi harcamalarının tam listesini görüyor.",
+    features: ["PDF ekstresi okuma"],
+    ai: null,
+    insight: {label: "AI çıkarımı", text: "Gelir: 32.000₺ / Kira: 10.500₺ / Market: 3.800₺ / Yemek siparişi: 2.940₺ / Abonelikler: 1.230₺ / Kredi kartı ödemeleri: 2.800₺ / Diğer alışveriş: 7.200₺"}
+  },
+  {
+    label: "Nakit akışı",
+    title: "'Neden para bitiyordu' sorusunun cevabı",
+    body: "Zeynep ilk kez rakamları bir arada görüyor. 32.000₺ gelirinin sadece 3.530₺'si kendi kontrolünde kalıyor — ve o 3.530₺'yi de fark etmeden harcıyor.",
+    features: ["Nakit akışı görselleştirmesi"],
+    ai: "Bu ay 3.530₺ fazlan olması gerekiyordu. O para Trendyol'a, Getir'e ve unuttuğun 4 aboneliğe gitti. Parayı harcıyorsun — ama fark etmiyorsun.",
+    insight: null
+  },
+  {
+    label: "Borç haritası",
+    title: "'Az borç' değilmiş",
+    body: "14.000₺ borç küçük görünüyordu. Ama borç haritası Zeynep'e gerçeği gösteriyor: sadece asgari ödemeyle devam ederse bu borcu kapatmak yıllar alacak ve ödeyeceği faiz ana paranın üstüne çıkacak.",
+    features: ["Borç haritası", "Gerçek fiyat etiketi"],
+    ai: "Bu iki kartı sadece asgari ödemeyle kapatman 4 yıl 8 ay sürer. Bu sürede 9.200₺ sadece faiz ödersin — borcunun %65'i kadar ekstra para.",
+    insight: null
+  },
+  {
+    label: "Simülasyon",
+    title: "'Peki şunu yapsam ne olur?'",
+    body: "Zeynep merak ediyor: 'Yemek siparişlerini kısıtsam ve o parayla ekstra ödeme yapsam ne değişir?' Senaryo simülatörüne giriyor ve iki gelecek karşılaştırmasını görüyor.",
+    features: ["Senaryo simülatörü"],
+    ai: "Yemek siparişini ayda 2.940₺'den 800₺'ye indirirsen, kalan 2.140₺'yi büyük karta ekstra ödersen — borç 4 yıl 8 ay yerine 14 ayda biter. 7.400₺ faiz tasarrufu edersin.",
+    insight: null
+  },
+  {
+    label: "Bu ay ne yapayım?",
+    title: "Karmaşık tablo değil, 3 aksiyon",
+    body: "Zeynep grafiklere bakmaktan bunaldı. Ana sayfaya dönüyor ve AI'ın sadece 3 somut adım çıkardığını görüyor. Başka hiçbir şey yok — sadece bu hafta ne yapması gerektiği.",
+    features: ["Bu ay ne yapmalıyım?"],
+    ai: "1. Netflix dışındaki 3 aboneliği iptal et → 890₺/ay kazanırsın.\n2. Büyük karta bu ay 2.500₺ öde, küçüğe sadece asgari.\n3. 500₺'yi dokunmadığın bir hesaba at — acil fon başlıyor.",
+    insight: null
+  },
+  {
+    label: "3 ay sonra",
+    title: "İlerleme görünür hale geliyor",
+    body: "3 ay boyunca her ay ekstresini yükledi. Yemek siparişlerini kıstı, büyük karta ekstra ödedi. Büyük kart borcu 9.000₺'ye düştü. Skor 38'den 54'e çıktı. Aylık özet bunu net gösteriyor.",
+    features: ["Aylık özet raporu", "Finansal sağlık skoru"],
+    ai: "3 ay önce her ay 3.000₺ fark etmeden harcıyordun. Bu ay 1.200₺ birikim yaptın. Büyük kart 11 ay daha — devam edersen bitiyor.",
+    insight: null
+  }
+];
+
+let cur = 0;
+
+function render() {
+  const s = steps[cur];
+  const nav = document.getElementById('nav');
+  const prog = document.getElementById('prog');
+  const content = document.getElementById('content');
+
+  nav.innerHTML = steps.map((st,i) =>
+    `<button class="step-btn ${i===cur?'active':''}" onclick="go(${i})">${st.label}</button>`
+  ).join('');
+
+  prog.innerHTML = steps.map((_,i) =>
+    `<div class="prog-dot ${i<cur?'done':i===cur?'active':''}"></div>`
+  ).join('');
+
+  let html = `<div class="card">
+    <div class="card-label">Adım ${cur+1} / ${steps.length}</div>
+    <div class="card-title">${s.title}</div>
+    <div class="card-body">${s.body.replace(/\n/g,'<br>')}</div>`;
+
+  if (s.features.length) {
+    html += `<div style="margin-bottom:10px;">${s.features.map(f=>`<span class="feature-tag">${f}</span>`).join('')}</div>`;
+  }
+
+  if (s.ai) {
+    html += `<div class="ai-bubble">${s.ai.replace(/\n/g,'<br>')}</div>`;
+  }
+
+  if (s.insight) {
+    html += `<div class="insight"><div class="insight-label">${s.insight.label}</div>${s.insight.text}</div>`;
+  }
+
+  html += `</div>`;
+  content.innerHTML = html;
+
+  document.getElementById('btn-prev').style.opacity = cur === 0 ? '0.4' : '1';
+  document.getElementById('btn-next').textContent = cur === steps.length-1 ? 'Başa dön' : 'Sonraki';
+}
+
+function go(i) { cur = i; render(); }
+function next() { cur = cur < steps.length-1 ? cur+1 : 0; render(); }
+function prev() { if(cur>0){ cur--; render(); } }
+
+render();
+</script>

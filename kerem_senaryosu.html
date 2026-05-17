@@ -1,0 +1,136 @@
+<style>
+.step-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--color-border-secondary); background:var(--color-background-secondary); color:var(--color-text-secondary); font-size:12px; cursor:pointer; transition:all .2s; }
+.step-btn.active { background:var(--color-background-primary); border-color:var(--color-border-primary); color:var(--color-text-primary); font-weight:500; }
+.card { background:var(--color-background-secondary); border:1px solid var(--color-border-tertiary); border-radius:12px; padding:20px 24px; }
+.card-label { font-size:11px; font-weight:500; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+.card-title { font-size:15px; font-weight:500; color:var(--color-text-primary); margin-bottom:10px; }
+.card-body { font-size:13px; color:var(--color-text-secondary); line-height:1.65; margin-bottom:14px; }
+.feature-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:500; margin:3px 3px 3px 0; background:var(--color-background-primary); border:1px solid var(--color-border-secondary); color:var(--color-text-secondary); }
+.ai-bubble { background:var(--color-background-primary); border-left:3px solid #1D9E75; border-radius:0 8px 8px 0; padding:10px 14px; margin-top:12px; font-size:12px; color:var(--color-text-secondary); font-style:italic; line-height:1.6; }
+.insight { background:var(--color-background-primary); border:1px solid var(--color-border-tertiary); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:12px; color:var(--color-text-secondary); line-height:1.6; }
+.insight-label { font-size:10px; font-weight:500; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+.prog-dot { width:8px; height:8px; border-radius:50%; background:var(--color-border-secondary); transition:background .3s; display:inline-block; }
+.prog-dot.done { background:#1D9E75; }
+.prog-dot.active { background:#1D9E75; }
+.goal-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--color-border-tertiary); font-size:12px; color:var(--color-text-secondary); }
+.goal-row:last-child { border-bottom:none; }
+.bar-wrap { flex:1; margin:0 12px; height:6px; background:var(--color-border-tertiary); border-radius:3px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:3px; background:#1D9E75; }
+</style>
+
+<div style="padding:4px 0 0">
+<div style="display:flex;gap:8px;margin-bottom:12px;" id="prog"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="nav"></div>
+<div id="content"></div>
+<div style="display:flex;gap:10px;margin-top:16px;">
+  <button onclick="prev()" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-secondary);font-size:13px;cursor:pointer;">Önceki</button>
+  <button onclick="next()" id="btn-next" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--color-border-primary);background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;cursor:pointer;font-weight:500;">Sonraki</button>
+</div>
+</div>
+
+<script>
+const steps = [
+  {
+    label: "Durum",
+    title: "Kerem, 29 — parası var ama çalışmıyor",
+    body: "Yazılım şirketinde kıdemli geliştirici. Aylık 85.000₺ maaş, bekâr, kirası 14.000₺. Ay sonunda her zaman para kalıyor ama o para ya birikmiş hesapta öylece duruyor ya da 'bir şeyler alayım' diye harcandı gidiyor. Borcu yok, kredi kartını her ay tamamen kapatıyor. Problemin farkında: 'Param var ama para benim için çalışmıyor.' Hedefi: 18 ayda araba almak ve uzun vadede birikim kurmak. Uygulamayı indiriyor çünkü 'bir düzen kurmak istiyorum' diyor.",
+    features: [],
+    ai: null,
+    insight: null
+  },
+  {
+    label: "PDF yükleme",
+    title: "Tablo iyi görünüyor ama...",
+    body: "PDF yükleniyor. Gelir-gider tablosu pozitif — her ay 18.000-22.000₺ arası fazla veriyor. Ama AI son 6 aya bakınca bir şey dikkatini çekiyor: bu fazlanın nereye gittiği belirsiz. Birikim hesabına gitmiyor, yatırıma gitmiyor — 'diğer harcamalar' kaleminde kayboluyor.",
+    features: ["PDF ekstresi okuma", "Nakit akışı görselleştirmesi"],
+    ai: "Son 6 ayda toplam 118.000₺ fazla verdin. Bu para şu an nerede? Birikim hesabında 23.000₺ var. Geri kalan 95.000₺ fark etmeden harcandı — büyük çoğunluğu tek seferlik alışverişler ve yeme-içme.",
+    insight: null
+  },
+  {
+    label: "Hedef belirleme",
+    title: "Araba hedefi rakama dönüşüyor",
+    body: "Kerem 'araba almak istiyorum' diyor. Uygulama bunu soyut bir istekten somut bir plana dönüştürüyor. Hedef tutarı, aylık ayırması gereken miktarı ve kaç ayda ulaşacağını gösteriyor.",
+    features: ["Senaryo simülatörü", "Bu ay ne yapmalıyım?"],
+    ai: "Hedefin: 18 ayda araba peşinatı. Almak istediğin araç 650.000₺ civarındaysa %30 peşinat 195.000₺ eder. 18 aya bölünce ayda 10.800₺ ayırman gerekiyor. Mevcut fazlan 18.000₺ — bu tamamen mümkün, üstelik 7.200₺ de sana kalıyor.",
+    insight: null
+  },
+  {
+    label: "Para çalışsın",
+    title: "Biriken para atıl durmamalı",
+    body: "Kerem'in birikim hesabında 23.000₺ var ama bu para vadesiz hesapta, enflasyona yenik düşüyor. AI bunu fark ediyor ve Kerem'e basit bir gerçeği gösteriyor — 'atıl para her geçen ay değer kaybediyor.'",
+    features: ["Finansal sağlık skoru"],
+    ai: "23.000₺'nin vadesiz hesapta durması, Türkiye enflasyon ortamında ayda yaklaşık 600-800₺ satın alma gücü kaybı demek. Bu parayı en azından yüksek faizli bir vadeli hesaba taşısan, araba hedefine katkı sağlar. Yatırım tavsiyesi veremem ama seçeneklerini araştırmanı öneririm.",
+    insight: null
+  },
+  {
+    label: "Simülasyon",
+    title: "'Arabayı 12 ayda alsam ne değişir?'",
+    body: "Kerem sabırsızlanıyor — 18 ay uzun geldi. Senaryo simülatörüne giriyor: 'Aylık 16.000₺ ayırırsam kaç ayda birikir?' AI iki senaryoyu karşılaştırıyor.",
+    features: ["Senaryo simülatörü"],
+    ai: "Ayda 10.800₺ ayırırsan: 18 ayda 195.000₺, her ay 7.200₺ rahat harcan.\nAyda 16.000₺ ayırırsan: 12 ayda 192.000₺, her ay 2.000₺ sıkışık yaşarsın.\nSoruyu sen cevapla: 6 ay erken araba mı, yoksa 6 ay rahat yaşam mı?",
+    insight: null
+  },
+  {
+    label: "İlerleme takibi",
+    title: "Her ay birikimin büyüdüğünü görmek",
+    body: "Kerem her ay ekstresini yüklüyor. Ana sayfada araba hedefine ne kadar yaklaştığını görüyor. Bu basit ama güçlü bir motivasyon — hedef soyut değil, rakama dönmüş ve ilerliyor.",
+    features: ["Aylık özet raporu"],
+    ai: null,
+    insight: {
+      label: "Araba hedefi — ay 6",
+      text: `<div class="goal-row"><span>Hedef</span><span style="font-weight:500">195.000₺</span></div>
+<div class="goal-row"><span>Ay 1</span><div class="bar-wrap"><div class="bar-fill" style="width:6%"></div></div><span>11.200₺</span></div>
+<div class="goal-row"><span>Ay 2</span><div class="bar-wrap"><div class="bar-fill" style="width:12%"></div></div><span>22.800₺</span></div>
+<div class="goal-row"><span>Ay 3</span><div class="bar-wrap"><div class="bar-fill" style="width:18%"></div></div><span>34.100₺</span></div>
+<div class="goal-row"><span>Ay 4</span><div class="bar-wrap"><div class="bar-fill" style="width:24%"></div></div><span>46.500₺</span></div>
+<div class="goal-row"><span>Ay 5</span><div class="bar-wrap"><div class="bar-fill" style="width:30%"></div></div><span>57.900₺</span></div>
+<div class="goal-row"><span>Ay 6</span><div class="bar-wrap"><div class="bar-fill" style="width:36%"></div></div><span>70.200₺</span></div>`
+    }
+  },
+  {
+    label: "18 ay sonra",
+    title: "Hedef tamamlandı — sırada ne var?",
+    body: "18 ay sonra araba parasını biriktirdi. Ama asıl önemli olan şu: artık 'para biriktirmek' alışkanlığı kazandı. Uygulama sona ermedi — şimdi yeni hedef soruyor. Kerem bu sefer 'yatırım portföyü kurmak istiyorum' diyor.",
+    features: ["Finansal sağlık skoru", "Bu ay ne yapmalıyım?"],
+    ai: "Arabayı aldın. 18 ay boyunca her ay düzenli biriktirdin — bu artık bir alışkanlık. Şimdi aynı disiplini yatırıma yönlendirirsen, ayda 10.000₺ ile 5 yılda ciddi bir portföy kurabilirsin. Yeni hedefini belirleyelim mi?",
+    insight: null
+  }
+];
+
+let cur = 0;
+
+function render() {
+  const s = steps[cur];
+  document.getElementById('nav').innerHTML = steps.map((st,i) =>
+    `<button class="step-btn ${i===cur?'active':''}" onclick="go(${i})">${st.label}</button>`
+  ).join('');
+  document.getElementById('prog').innerHTML = steps.map((_,i) =>
+    `<div class="prog-dot ${i<cur?'done':i===cur?'active':''}"></div>`
+  ).join('');
+
+  let html = `<div class="card">
+    <div class="card-label">Adım ${cur+1} / ${steps.length}</div>
+    <div class="card-title">${s.title}</div>
+    <div class="card-body">${s.body}</div>`;
+
+  if (s.features.length) {
+    html += `<div style="margin-bottom:10px;">${s.features.map(f=>`<span class="feature-tag">${f}</span>`).join('')}</div>`;
+  }
+  if (s.ai) {
+    html += `<div class="ai-bubble">${s.ai.replace(/\n/g,'<br>')}</div>`;
+  }
+  if (s.insight) {
+    html += `<div class="insight"><div class="insight-label">${s.insight.label}</div>${s.insight.text}</div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('btn-next').textContent = cur === steps.length-1 ? 'Başa dön' : 'Sonraki';
+}
+
+function go(i) { cur=i; render(); }
+function next() { cur = cur<steps.length-1 ? cur+1 : 0; render(); }
+function prev() { if(cur>0){cur--;render();} }
+
+render();
+</script>

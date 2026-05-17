@@ -1,0 +1,138 @@
+<style>
+.step-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--color-border-secondary); background:var(--color-background-secondary); color:var(--color-text-secondary); font-size:12px; cursor:pointer; transition:all .2s; }
+.step-btn.active { background:var(--color-background-primary); border-color:var(--color-border-primary); color:var(--color-text-primary); font-weight:500; }
+.card { background:var(--color-background-secondary); border:1px solid var(--color-border-tertiary); border-radius:12px; padding:20px 24px; }
+.card-label { font-size:11px; font-weight:500; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+.card-title { font-size:15px; font-weight:500; color:var(--color-text-primary); margin-bottom:10px; }
+.card-body { font-size:13px; color:var(--color-text-secondary); line-height:1.65; margin-bottom:14px; }
+.feature-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:500; margin:3px 3px 3px 0; background:var(--color-background-primary); border:1px solid var(--color-border-secondary); color:var(--color-text-secondary); }
+.ai-bubble { background:var(--color-background-primary); border-left:3px solid #7F77DD; border-radius:0 8px 8px 0; padding:10px 14px; margin-top:12px; font-size:12px; color:var(--color-text-secondary); font-style:italic; line-height:1.6; }
+.insight { background:var(--color-background-primary); border:1px solid var(--color-border-tertiary); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:12px; color:var(--color-text-secondary); line-height:1.6; }
+.insight-label { font-size:10px; font-weight:500; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+.prog-dot { width:8px; height:8px; border-radius:50%; background:var(--color-border-secondary); transition:background .3s; display:inline-block; }
+.prog-dot.done { background:#1D9E75; }
+.prog-dot.active { background:#7F77DD; }
+.diff-row { display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--color-border-tertiary); color:var(--color-text-secondary); }
+.diff-row:last-child { border-bottom:none; }
+.diff-bad { color:#A32D2D; font-weight:500; }
+.diff-good { color:#3B6D11; font-weight:500; }
+</style>
+
+<div style="padding:4px 0 0">
+<div style="display:flex;gap:8px;margin-bottom:12px;" id="prog"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="nav"></div>
+<div id="content"></div>
+<div style="display:flex;gap:10px;margin-top:16px;">
+  <button onclick="prev()" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-secondary);font-size:13px;cursor:pointer;">Önceki</button>
+  <button onclick="next()" id="btn-next" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--color-border-primary);background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;cursor:pointer;font-weight:500;">Sonraki</button>
+</div>
+</div>
+
+<script>
+const steps = [
+  {
+    label: "Durum",
+    title: "Murat, 38 — 'İdare ediyorum' sanıyor",
+    body: "Ankara'da eşi ve 2 çocuğuyla yaşıyor. Aylık 58.000₺ geliyor, iyi bir maaş. Konut kredisi, araç kredisi ve bir dönem iş kurmak için aldığı esnaf kredisi var — iş olmadı, borç kaldı. 3 farklı bankada hesabı var ama toplamı hiç bir ekranda görmedi. Eşi 'her ay biraz daha sıkışıyoruz' diyor, Murat 'hayır idare ediyoruz' diyor. Uygulamayı indiriyor çünkü eşini ikna etmek istiyor.",
+    features: [],
+    ai: null,
+    insight: null
+  },
+  {
+    label: "3 PDF",
+    title: "İlk kez her şey tek ekranda",
+    body: "Murat 3 farklı bankanın ekstresini yüklüyor — Garanti, Ziraat, Vakıfbank. AI hepsini birleştirip tek bir tablo oluşturuyor. Murat rakamları görünce ekrana uzun süre bakıyor. Eşi haklıymış.",
+    features: ["PDF ekstresi okuma", "Nakit akışı görselleştirmesi"],
+    ai: null,
+    insight: {
+      label: "AI çıkarımı — 3 banka birleşik",
+      text: `<div class="diff-row"><span>Toplam gelir</span><span>58.000₺</span></div>
+<div class="diff-row"><span>Konut kredisi</span><span class="diff-bad">-14.200₺</span></div>
+<div class="diff-row"><span>Araç kredisi</span><span class="diff-bad">-6.800₺</span></div>
+<div class="diff-row"><span>Esnaf kredisi</span><span class="diff-bad">-4.200₺</span></div>
+<div class="diff-row"><span>Market + faturalar</span><span class="diff-bad">-12.400₺</span></div>
+<div class="diff-row"><span>Okul + çocuk giderleri</span><span class="diff-bad">-8.600₺</span></div>
+<div class="diff-row"><span>Diğer</span><span class="diff-bad">-13.000₺</span></div>
+<div class="diff-row" style="font-weight:500;"><span>Bu ay net</span><span class="diff-bad">-1.200₺</span></div>`
+    }
+  },
+  {
+    label: "Borç haritası",
+    title: "Hangi borç iyi, hangi borç kötü?",
+    body: "Toplam borç: 412.000₺. Murat bunu ilk kez tek rakam olarak görüyor. Ama asıl önemli olan borçların sınıflandırılması — uygulama her borcu değerlendiriyor ve Murat'a 'hangisine odaklan' sorusunu cevaplıyor.",
+    features: ["Borç haritası", "Borç sınıflandırması"],
+    ai: "Konut kredisi stratejik — ev değer kazanıyor, faiz makul, dokunma. Araç kredisi gri bölge — araç değer kaybediyor ama iş için gerekli. Esnaf kredisi kritik — sana hiçbir şey kazandırmıyor, yüksek faizle her ay 4.200₺ gidiyor. Buraya odaklan.",
+    insight: null
+  },
+  {
+    label: "Şok an",
+    title: "Esnaf kredisinin gerçek maliyeti",
+    body: "Murat esnaf kredisini 'zaten küçük taksit' diye düşünüyordu. Borç haritası ona bu kredinin toplam maliyetini gösteriyor — ve o güne kadar ne kadar faiz ödediğini.",
+    features: ["Gerçek fiyat etiketi"],
+    ai: "Bu krediyi aldığından beri toplam 31.400₺ faiz ödedin. Ana paranın neredeyse yarısı kadar. Ve hâlâ 2 yıl 3 ay daha ödeyeceksin. Kalan sürede 22.600₺ daha faiz gidecek — iş kurulsaydı mantıklıydı, kurulmadı.",
+    insight: null
+  },
+  {
+    label: "Simülasyon",
+    title: "'Arabamı satsam ne olur?'",
+    body: "Murat bir gece düşünüyor: arabasını satıp araç kredisini kapatsam ve o para esnaf kredisine gitse ne değişir? Senaryo simülatörüne giriyor. Ama AI sadece matematiği değil, pratik sorunu da soruyor.",
+    features: ["Senaryo simülatörü"],
+    ai: "Arabayı bugün satsan 290.000₺ alırsın, kalan araç borcu 168.000₺. Fark 122.000₺ esnaf kredisine gitse, o borç 14 ay erken kapanır, 18.400₺ faiz tasarrufu edersin. Ama arabası olmadan işe nasıl gideceksin? Bunu da hesaba kat.",
+    insight: null
+  },
+  {
+    label: "Asistan",
+    title: "Gece geç saatte bir soru",
+    body: "Çarşamba gecesi Murat'ın aklına takılıyor: 'Bu ay çocuğun okul gezisi parası çıktı, konut kredisini bir ay atlasam ne olur?' Eşine sormak istemiyor, bankayı aramak istemez. Asistana yazıyor.",
+    features: ["Yapay zeka sohbet asistanı"],
+    ai: "Konut kredisini atlamak riskli — gecikme faizi ve kredi notuna etkisi var. Ama şu an 1.200₺ açık veriyorsun zaten. Sana bir seçenek: esnaf kredisine bu ay sadece asgari öde, farkı okul gezisine kullan. Esnaf kredisi 1 ay yavaşlar ama konut kredisi zamanında ödenmiş olur — kredi notun korunur.",
+    insight: null
+  },
+  {
+    label: "3 ay sonra",
+    title: "Eşiyle aynı ekrana bakıyorlar",
+    body: "3 ay sonra Murat ve eşi aylık özeti birlikte açıyor. Artık tartışma yok çünkü her ikisi de aynı veriyi görüyor. Açık 1.200₺'den 800₺ fazlaya döndü. Küçük ama gerçek bir ilerleme. Esnaf kredisine ekstra ödeme başladı.",
+    features: ["Aylık özet raporu", "Finansal sağlık skoru"],
+    ai: "3 ay önce her ay 1.200₺ açık veriyordunuz. Bu ay 800₺ fazla verdiniz. Esnaf kredisi artık 1 yıl 9 ay — başladığınızda 2 yıl 3 aydı. Aradaki fark: 3 ay boyunca yaptığınız ekstra ödemeler.",
+    insight: null
+  }
+];
+
+let cur = 0;
+
+function render() {
+  const s = steps[cur];
+  document.getElementById('nav').innerHTML = steps.map((st,i) =>
+    `<button class="step-btn ${i===cur?'active':''}" onclick="go(${i})">${st.label}</button>`
+  ).join('');
+
+  document.getElementById('prog').innerHTML = steps.map((_,i) =>
+    `<div class="prog-dot ${i<cur?'done':i===cur?'active':''}"></div>`
+  ).join('');
+
+  let html = `<div class="card">
+    <div class="card-label">Adım ${cur+1} / ${steps.length}</div>
+    <div class="card-title">${s.title}</div>
+    <div class="card-body">${s.body}</div>`;
+
+  if (s.features.length) {
+    html += `<div style="margin-bottom:10px;">${s.features.map(f=>`<span class="feature-tag">${f}</span>`).join('')}</div>`;
+  }
+  if (s.ai) {
+    html += `<div class="ai-bubble">${s.ai.replace(/\n/g,'<br>')}</div>`;
+  }
+  if (s.insight) {
+    html += `<div class="insight"><div class="insight-label">${s.insight.label}</div>${s.insight.text}</div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('btn-next').textContent = cur === steps.length-1 ? 'Başa dön' : 'Sonraki';
+}
+
+function go(i) { cur=i; render(); }
+function next() { cur = cur<steps.length-1 ? cur+1 : 0; render(); }
+function prev() { if(cur>0){cur--;render();} }
+
+render();
+</script>
