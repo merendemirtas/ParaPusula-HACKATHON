@@ -1,0 +1,276 @@
+"""
+ParaPusula - Firebase Firestore Servisi
+Kullanıcı profilleri, finansal snapshot'lar ve TCMB cache'ini yönetir.
+Firebase Admin SDK sync işlemleri asyncio.to_thread ile wrap edilir.
+"""
+
+import os
+import asyncio
+from typing import Optional
+from datetime import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore
+from dotenv import load_dotenv
+
+from models.schemas import UserProfile, FinancialSnapshot, TCMBData
+
+load_dotenv()
+
+
+class FirebaseService:
+    """
+    Firebase Firestore ile tüm veri okuma/yazma işlemlerini yöneten servis.
+    Singleton pattern ile tek instance kullanılır.
+    """
+
+    def __init__(self):
+        # Lazy init: db bağlantısı ilk çağrıda kurulur
+        self._db = None
+
+    def _get_db(self):
+        """Firestore client'ını lazy olarak başlatır."""
+        if self._db is not None:
+            return self._db
+
+        # Firebase zaten başlatılmışsa yeniden başlatma
+        if not firebase_admin._apps:
+            # Ortam değişkenlerinden credential dict oluştur
+            cred_dict = {
+                "type": "service_account",
+                "project_id": os.getenv("FIREBASE_PROJECT_ID", ""),
+                "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID", ""),
+                "private_key": os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n"),
+                "client_email": os.getenv("FIREBASE_CLIENT_EMAIL", ""),
+                "client_id": os.getenv("FIREBASE_CLIENT_ID", ""),
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{os.getenv('FIREBASE_CLIENT_EMAIL', '')}",
+                "universe_domain": "googleapis.com"
+            }
+
+            try:
+                cred = credentials.Certificate(cred_dict)
+                firebase_admin.initialize_app(cred)
+            except Exception as e:
+                raise RuntimeError(f"Firebase başlatma hatası: {e}")
+
+        self._db = firestore.client()
+        return self._db
+
+    @property
+    def db(self):
+        return self._get_db()
+
+    # ─────────────────────────────────────────────
+    # Kullanıcı Profili İşlemleri
+    # ─────────────────────────────────────────────
+
+    async def kullanici_profil_kaydet(self, profil: UserProfile) -> None:
+        """
+        Kullanıcı profilini Firestore'a kaydeder.
+        Koleksiyon: users/{userId}/profile
+        """
+        try:
+            profil_dict = profil.model_dump()
+
+            def _kaydet():
+                self.db.collection("users").document(profil.user_id)\
+                    .collection("profile").document("main").set(profil_dict)
+
+            await asyncio.to_thread(_kaydet)
+        except Exception as e:
+            raise RuntimeError(f"Profil kaydetme hatası: {e}")
+
+    async def kullanici_profil_oku(self, user_id: str) -> Optional[UserProfile]:
+        """
+        Kullanıcı profilini Firestore'dan okur.
+        Bulunamazsa None döndürür.
+        """
+        try:
+            def _oku():
+                doc = self.db.collection("users").document(user_id)\
+                    .collection("profile").document("main").get()
+                return doc.to_dict() if doc.exists else None
+
+            profil_dict = await asyncio.to_thread(_oku)
+
+            if profil_dict is None:
+                return None
+
+            return UserProfile(**profil_dict)
+        except Exception as e:
+            raise RuntimeError(f"Profil okuma hatası: {e}")
+
+    # ─────────────────────────────────────────────
+    # Finansal Snapshot İşlemleri
+    # ─────────────────────────────────────────────
+
+    async def snapshot_kaydet(self, snapshot: FinancialSnapshot) -> None:
+        """
+        Finansal snapshot'ı Firestore'a kaydeder.
+        Koleksiyon: users/{userId}/snapshots/{ay}
+        """
+        try:
+            snapshot_dict = snapshot.model_dump()
+            print(f"[FIREBASE] Snapshot yazılıyor → users/{snapshot.user_id}/snapshots/{snapshot.ay}")
+
+            def _kaydet():
+                self.db.collection("users").document(snapshot.user_id)\
+                    .collection("snapshots").document(snapshot.ay).set(snapshot_dict)
+
+            await asyncio.to_thread(_kaydet)
+            print(f"[FIREBASE] Snapshot başarıyla yazıldı ✓")
+        except Exception as e:
+            print(f"[FIREBASE] HATA snapshot_kaydet: {e}")
+            raise RuntimeError(f"Snapshot kaydetme hatası: {e}")
+
+    async def snapshot_oku(self, user_id: str, ay: str) -> Optional[FinancialSnapshot]:
+        """
+        Belirli bir aya ait finansal snapshot'ı okur.
+        Bulunamazsa None döndürür.
+        """
+        try:
+            def _oku():
+                doc = self.db.collection("users").document(user_id)\
+                    .collection("snapshots").document(ay).get()
+                return doc.to_dict() if doc.exists else None
+
+            snapshot_dict = await asyncio.to_thread(_oku)
+
+            if snapshot_dict is None:
+                return None
+
+            return FinancialSnapshot(**snapshot_dict)
+        except Exception as e:
+            raise RuntimeError(f"Snapshot okuma hatası: {e}")
+
+    async def son_snapshot_oku(self, user_id: str) -> Optional[FinancialSnapshot]:
+        """
+        Kullanıcının en son (güncel) finansal snapshot'ını döndürür.
+        Snapshots koleksiyonundan en yeni belgeyi getirir.
+        """
+        try:
+            print(f"[FIREBASE] Son snapshot okunuyor → users/{user_id}/snapshots/")
+
+            def _oku():
+                docs = self.db.collection("users").document(user_id)\
+                    .collection("snapshots")\
+                    .order_by("olusturulma_tarihi", direction=firestore.Query.DESCENDING)\
+                    .limit(1)\
+                    .stream()
+                for doc in docs:
+                    print(f"[FIREBASE] Snapshot bulundu: doc_id={doc.id}")
+                    return doc.to_dict()
+                print(f"[FIREBASE] Snapshot bulunamadı: users/{user_id}/snapshots/ boş")
+                return None
+
+            snapshot_dict = await asyncio.to_thread(_oku)
+
+            if snapshot_dict is None:
+                return None
+
+            return FinancialSnapshot(**snapshot_dict)
+        except Exception as e:
+            print(f"[FIREBASE] HATA son_snapshot_oku: {e}")
+            raise RuntimeError(f"Son snapshot okuma hatası: {e}")
+
+    async def analiz_guncelle(
+        self,
+        user_id: str,
+        ay: str,
+        oneriler: list,
+        borc_plan: Optional[dict]
+    ) -> None:
+        """
+        Snapshot'a öneri ve borç planı bilgisini ekler/günceller.
+        update() yerine set(merge=True) kullanılır — belge yoksa da çalışır.
+        """
+        try:
+            guncelleme_dict = {
+                "oneriler": oneriler,
+                "borc_cikis_plani": borc_plan,
+                "guncelleme_tarihi": datetime.now().isoformat()
+            }
+
+            print(f"[FIREBASE] analiz_guncelle → users/{user_id}/snapshots/{ay}")
+            print(f"[FIREBASE] Öneri sayısı: {len(oneriler)}, Borç planı: {'var' if borc_plan else 'yok'}")
+
+            def _guncelle():
+                # set(merge=True): document yoksa oluşturur, varsa sadece belirtilen alanları günceller
+                self.db.collection("users").document(user_id)\
+                    .collection("snapshots").document(ay).set(guncelleme_dict, merge=True)
+
+            await asyncio.to_thread(_guncelle)
+            print(f"[FIREBASE] analiz_guncelle başarılı ✓")
+        except Exception as e:
+            print(f"[FIREBASE] HATA analiz_guncelle: {e}")
+            raise RuntimeError(f"Analiz güncelleme hatası: {e}")
+
+    async def snapshot_ham_oku(self, user_id: str, ay: str) -> Optional[dict]:
+        """
+        Belirtilen aydaki snapshot'ı ham dict olarak döndürür (Pydantic'e geçirmeden).
+        Recalculate endpoint'i için kullanılır.
+        """
+        try:
+            def _oku():
+                doc = self.db.collection("users").document(user_id)\
+                    .collection("snapshots").document(ay).get()
+                return doc.to_dict() if doc.exists else None
+
+            return await asyncio.to_thread(_oku)
+        except Exception as e:
+            raise RuntimeError(f"Ham snapshot okuma hatası: {e}")
+
+    async def snapshot_guncelle(self, user_id: str, ay: str, guncellemeler: dict) -> None:
+        """Ham dict ile snapshot'ın istenen alanlarını günceller."""
+        try:
+            def _guncelle():
+                self.db.collection("users").document(user_id)\
+                    .collection("snapshots").document(ay).set(guncellemeler, merge=True)
+
+            await asyncio.to_thread(_guncelle)
+        except Exception as e:
+            raise RuntimeError(f"Snapshot güncelleme hatası: {e}")
+
+    # ─────────────────────────────────────────────
+    # TCMB Cache İşlemleri
+    # ─────────────────────────────────────────────
+
+    async def tcmb_cache_oku(self) -> Optional[TCMBData]:
+        """
+        Firestore'daki TCMB cache verisini okur.
+        Koleksiyon: tcmb_cache/latest
+        """
+        try:
+            def _oku():
+                doc = self.db.collection("tcmb_cache").document("latest").get()
+                return doc.to_dict() if doc.exists else None
+
+            cache_dict = await asyncio.to_thread(_oku)
+
+            if cache_dict is None:
+                return None
+
+            return TCMBData(**cache_dict)
+        except Exception as e:
+            raise RuntimeError(f"TCMB cache okuma hatası: {e}")
+
+    async def tcmb_cache_yaz(self, tcmb: TCMBData) -> None:
+        """
+        TCMB verisini Firestore cache'e yazar.
+        Koleksiyon: tcmb_cache/latest
+        """
+        try:
+            tcmb_dict = tcmb.model_dump()
+
+            def _yaz():
+                self.db.collection("tcmb_cache").document("latest").set(tcmb_dict)
+
+            await asyncio.to_thread(_yaz)
+        except Exception as e:
+            raise RuntimeError(f"TCMB cache yazma hatası: {e}")
+
+
+# Singleton instance
+firebase_service = FirebaseService()

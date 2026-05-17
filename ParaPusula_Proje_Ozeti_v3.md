@@ -1,5 +1,4 @@
-# ParaPusula — Kapsamlı Proje Özeti v2
-
+# ParaPusula — Kapsamlı Proje Özeti v3
 > Yapay Zeka Destekli Kişisel Finansal Özgürlük Asistanı
 > BTK Akademi Hackathon 2026
 
@@ -8,18 +7,15 @@
 ## 1. Misyon ve Problem Tanımı
 
 ### Misyon
-
 Türkiye'de yaşayan bireyleri borç tuzağından çıkarmak, harcamalarını anlamalarını sağlamak ve finansal hedeflerine ulaştırmak için hem ayna tutan hem kişiselleştirilmiş yol haritası sunan bir yapay zeka uygulaması. Türkiye'ye özel, Türkçe, empatik.
 
 ### Problem
-
 Türkiye'de milyonlarca insan hayat kalitesini artırmak için borçlanıyor; ancak her borç döngüsü stres seviyesini yükseltiyor ve finansal özgürlüğü daha da uzaklaştırıyor. Bu borç tuzağından çıkmanın önündeki en büyük engel bilgi eksikliği değil — **netlik eksikliğidir.**
 
 **Borç tuzağı döngüsü:**
 Hayat pahalılaşır → Kredi / borç alınır → Faiz ödenir → Daha çok çalışılması gerekir → Hayat kalitesi düşer → Tekrar borç alınır → Döngü başlar
 
 ### Piyasadaki Boşluk
-
 Mevcut uygulamalar (Cleo, YNAB, Finart vb.) ya ABD odaklı ve Türk bankalarıyla uyumsuz, ya da sadece harcama takibi yapan yüzeysel araçlar. **Hiçbiri borç tuzağını gösterip çıkış planı üretmiyor, hiçbiri Türkiye ekonomik gerçekleriyle konuşmuyor.**
 
 ---
@@ -36,25 +32,24 @@ Mevcut uygulamalar (Cleo, YNAB, Finart vb.) ya ABD odaklı ve Türk bankalarıyl
 
 ## 3. Rakip Analizi
 
-| Özellik                 | Cleo / YNAB | Finart      | ParaPusula              |
-| ----------------------- | ----------- | ----------- | ----------------------- |
-| Türkiye bankası desteği | Hayır       | Hayır       | Evet (PDF ekstresi)     |
-| Türkçe dil desteği      | Hayır       | Kısmi       | Evet, tam destek        |
-| Borç tuzağını gösterme  | Hayır       | Hayır       | Evet — özümüz bu        |
-| Empati dili             | Roast modu  | Yok         | Anlayan, destekleyen    |
-| Senaryo simülatörü      | Sınırlı     | Yok         | Tam kapsamlı            |
-| Türkiye'ye özel içerik  | Hayır       | Hayır       | TÜFE, TL, TCMB verisi   |
-| Çıkış odaklı plan       | Genel bütçe | Genel bütçe | Borç tuzağından çıkış   |
-| Abonelik puanlama       | Yok         | Yok         | Evet — orijinal özellik |
-| Güncel konut endeksi    | Yok         | Yok         | TCMB EVDS API           |
-| Agentic yapı            | Yok         | Yok         | LangGraph multi-agent   |
+| Özellik | Cleo / YNAB | Finart | ParaPusula |
+|---|---|---|---|
+| Türkiye bankası desteği | Hayır | Hayır | Evet (PDF ekstresi) |
+| Türkçe dil desteği | Hayır | Kısmi | Evet, tam destek |
+| Borç tuzağını gösterme | Hayır | Hayır | Evet — özümüz bu |
+| Empati dili | Roast modu | Yok | Anlayan, destekleyen |
+| Senaryo simülatörü | Sınırlı | Yok | Tam kapsamlı |
+| Türkiye'ye özel içerik | Hayır | Hayır | TÜFE, TL, TCMB verisi |
+| Çıkış odaklı plan | Genel bütçe | Genel bütçe | Borç tuzağından çıkış |
+| Abonelik puanlama | Yok | Yok | Evet — orijinal özellik |
+| Güncel konut endeksi | Yok | Yok | TCMB EVDS API |
+| Agentic yapı | Yok | Yok | LangGraph multi-agent |
 
 ---
 
 ## 4. Değerlendirme Kriterleri ve ParaPusula'nın Karşılığı
 
 ### 🏆 20 PUAN — Kullanıcı Değeri
-
 **"Ürün gerçekten uygulanabilir mi ve tüketicilerin problemlerini çözer mi?"**
 
 ParaPusula dört farklı gerçek kullanıcı profilini çözer:
@@ -72,10 +67,9 @@ ParaPusula dört farklı gerçek kullanıcı profilini çözer:
 ---
 
 ### 🏆 20 PUAN — Teknik Puan
-
 **"Projede doğru algoritmalar, mimari yaklaşımlar ve araçlar kullanılmış mı?"**
 
-**Mimari: Multi-Agent Pipeline (LangGraph + A2A)**
+**Mimari: Multi-Agent Pipeline (LangGraph)**
 
 ```
 Kullanıcı PDF yükler
@@ -84,7 +78,7 @@ Kullanıcı PDF yükler
         ↓
 [Kategorizasyon Agent] — Harcamaları kategorize eder, abonelikleri tespit eder
         ↓
-[Veri Zenginleştirme Agent] — TCMB EVDS API'den KFE, TÜFE, faiz verisi çeker
+[Veri Zenginleştirme Agent] — TCMB EVDS API cache'den KFE, TÜFE, faiz verisi okur
         ↓
 [Analiz Agent] — Nakit akışı, borç haritası, finansal sağlık skoru hesaplar
         ↓
@@ -93,11 +87,10 @@ Kullanıcı PDF yükler
 [Sohbet Agent] — Kullanıcı sorularını kullanıcının kendi verisine bakarak yanıtlar
 ```
 
-Ajanlar arası iletişim **A2A (Agent-to-Agent Protocol)** ile yönetilir. Her ajan bağımsız çalışır, görev devri standart protokolle gerçekleşir.
+Ajanlar arası iletişim **LangGraph state yönetimi** ile sağlanır. Her ajan bir DAG node'udur; state bir sonraki node'a otomatik aktarılır. Koşullu dallanma desteklenir — örneğin kullanıcının konut kredisi yoksa Veri Zenginleştirme Ajanı KFE çekmez.
 
 **RAG (Retrieval-Augmented Generation)**
 Her AI çağrısına Türkiye'ye özel bağlam eklenir:
-
 - TCMB EVDS API'den çekilen güncel KFE (Konut Fiyat Endeksi)
 - Güncel TÜFE ve enflasyon verileri
 - BDDK azami kredi faiz oranları
@@ -107,21 +100,19 @@ Bu sayede AI "Türkiye gerçeklerini bilerek" konuşur — global rakiplerin yap
 
 **Kullanılan Teknolojiler:**
 
-| Katman             | Teknoloji                     | Gerekçe                                |
-| ------------------ | ----------------------------- | -------------------------------------- |
-| AI motoru          | Gemini API (Gemini 2.0 Flash) | Zorunlu + ana beyin                    |
-| PDF okuma          | Gemini File API               | Parser yazmaya gerek kalmıyor          |
-| Agent orkestrasyon | LangGraph + LangChain         | Multi-agent pipeline yönetimi          |
-| Agent iletişim     | A2A Protocol                  | Standart agent haberleşmesi            |
-| Backend            | FastAPI (Python)              | Hızlı, modern, async destek            |
-| Veritabanı         | Firebase (Firestore)          | Google ekosistemi uyumu, ücretsiz tier |
-| Frontend           | React + Recharts              | Arayüz + veri görselleştirme           |
-| Dış veri           | TCMB EVDS API                 | KFE, TÜFE, faiz — resmi ve ücretsiz    |
+| Katman | Teknoloji | Gerekçe |
+|---|---|---|
+| AI motoru | Gemini API (Gemini 2.0 Flash) | Zorunlu + ana beyin |
+| PDF okuma | Gemini File API | Parser yazmaya gerek kalmıyor |
+| Agent orkestrasyon | LangGraph + LangChain | Multi-agent pipeline yönetimi |
+| Backend | FastAPI (Python) | Hızlı, modern, async destek |
+| Veritabanı | Firebase (Firestore) | Google ekosistemi uyumu, ücretsiz tier |
+| Frontend | React + Recharts | Arayüz + veri görselleştirme |
+| Dış veri | TCMB EVDS API | KFE, TÜFE, faiz — resmi ve ücretsiz |
 
 ---
 
 ### 🏆 10 PUAN — Performans ve Doğruluk
-
 **"Üretken yapay zeka çıktıları doğru, alakalı ve verimli mi?"**
 
 **Doğruluk için alınan önlemler:**
@@ -136,81 +127,74 @@ Bu sayede AI "Türkiye gerçeklerini bilerek" konuşur — global rakiplerin yap
 
 **Verimlilik:** Gemini 2.0 Flash modeli tercih edilir — yüksek doğruluk, düşük gecikme, ücretsiz tier limitlerinde kalınır.
 
+**TCMB Cache Mimarisi:** TCMB verileri günlük çekilip Firestore'a yazılır. Demo dahil tüm kullanıcı isteklerinde cache'den okunur; API'nin anlık erişilemezliğinden etkilenmez. Fallback değerler tanımlıdır (TÜFE: %65, KFE: %34, azami faiz: %4.5, asgari ücret: 22.104₺).
+
 ---
 
 ### 🏆 10 PUAN — Agentic Yapılar
-
 **"Üretken yapay zeka içinde agentic yapılar var mı? Doğru uygulamalar yapılmış mı?"**
 
 ParaPusula'nın agentic mimarisi birbirinden bağımsız 6 ajandan oluşur:
 
 **PDF Agent**
-
 - Görev: Gemini File API ile banka ekstresini okur
 - Girdi: Ham PDF dosyası
 - Çıktı: Yapılandırılmış işlem listesi (tarih, tutar, açıklama, banka)
+- MVP Banka Desteği: Ziraat Bankası + Halkbank (her banka için ayrı prompt template)
 - Özellik: Birden fazla banka ekstresini birleştirir
 
 **Kategorizasyon Agent**
-
 - Görev: İşlemleri kategorize eder
 - Girdi: Yapılandırılmış işlem listesi
 - Çıktı: Kategorili harcama tablosu (market, yemek, abonelik, kredi, vb.)
 - Özellik: Abonelikleri otomatik tespit eder
 
 **Veri Zenginleştirme Agent**
-
-- Görev: TCMB EVDS API'den güncel ekonomik veri çeker
+- Görev: Firestore cache'den TCMB verisi okur; cache yoksa TCMB EVDS API'den çekip yazar
 - Girdi: Kullanıcının borç türleri
 - Çıktı: KFE, TÜFE, faiz oranları — bu ajanın çıktısı analiz ajanına bağlam sağlar
-- Özellik: Konut kredisi varsa KFE otomatik çekilir
+- Özellik: Konut kredisi varsa KFE otomatik çekilir; cache-first mimari
 
 **Analiz Agent**
-
 - Görev: Nakit akışı, borç haritası, skor hesaplar
 - Girdi: Kategorili harcamalar + TCMB verisi + geçmiş aylar
 - Çıktı: Finansal sağlık skoru, borç sınıflandırması, nakit akışı özeti
 - Özellik: Aylık karşılaştırmalı analiz
 
 **Öneri Agent**
-
 - Görev: Kişiselleştirilmiş plan ve aksiyonlar üretir
 - Girdi: Analiz çıktısı + onboarding profili
 - Çıktı: 3 somut aksiyon, borç çıkış planı, senaryo simülasyonu
 - Özellik: Para kişiliğine göre dil ve strateji değişir
 
 **Sohbet Agent**
-
 - Görev: Kullanıcı sorularını kullanıcının kendi verisine bakarak yanıtlar
 - Girdi: Kullanıcı sorusu + tüm finansal snapshot
 - Çıktı: Empatik, kişiselleştirilmiş Türkçe yanıt
 - Özellik: "Arabamı satsam mı?" gibi açık uçlu soruları kendi verisiyle yorumlar
 
-**A2A ile ajan koordinasyonu:** Ajanlar birbirinden bağımsız çalışır. Bir ajan görevi bitirince A2A protokolüyle bir sonrakine devreder. Bu sayede her ajan sadece kendi sorumluluğuna odaklanır, sistemin bir parçası bozulsa diğerleri çalışmaya devam eder.
+**LangGraph ile ajan koordinasyonu:** Ajanlar LangGraph DAG üzerinde çalışır. Her ajan bir node, her geçiş bir edge. State bir sonraki node'a otomatik aktarılır. Sistemin bir parçası hata verirse pipeline durur ve kullanıcıya bildirim gönderilir.
 
 ---
 
 ### 🏆 10 PUAN — Yenilikçilik ve Özgünlük
-
 **"Yenilikçi bir fikir mi?"**
 
 ParaPusula'yı özgün kılan 5 unsur:
 
 **1. Abonelik Puanlama Sistemi**
 Kullanıcı her aboneliği 1-5 üzerinden kullanım puanıyla değerlendirir. Hiçbir uygulamada bu yok. AI bu puanı kullanarak gerçek maliyet gösterir:
-
 > "Netflix'e 219₺/ay, yılda 2.628₺ ödüyorsun — kullanım puanın 1/5."
 
 **2. TCMB Verisiyle Stratejik Borç Analizi**
 Konut kredisini "kötü borç / stratejik borç" diye ayırmak için resmi Konut Fiyat Endeksi kullanılıyor. Dünyada bu analizi yapan bireysel finans uygulaması yok.
-
 > "Eviniz son 12 ayda %34 değer kazandı, kredinizin aylık faizi %1.82 — bu stratejik bir borç."
 
 **3. Değişken Gelir Modu**
 Serbest çalışanlar için ayrı bir hesaplama mantığı: her ay gelen gelirden önce sabit giderler ve vergi karşılığı ayrılır, "gerçekten kullanılabilir para" ayrıca gösterilir.
 
 **4. Banka API'si Olmadan Türk Bankalarını Destekleme**
-Plaid veya Open Banking API gerektirmez. PDF ekstresi yeterli — bu Türkiye'deki en büyük engeli ortadan kaldırıyor.
+Plaid veya Open Banking API gerektirmez. PDF ekstresi yeterli — bu Türkiye'deki en büyük engeli ortadan kaldırıyor. MVP'de Ziraat Bankası ve Halkbank desteklenmektedir.
 
 **5. Gelecek Odaklı Senaryo Simülatörü**
 "Bunu yapsaydım ne olurdu?" değil, "bunu yaparsam ne olur?" sorusunu yanıtlıyor. Geçmişi değil geleceği simüle ediyor.
@@ -218,7 +202,6 @@ Plaid veya Open Banking API gerektirmez. PDF ekstresi yeterli — bu Türkiye'de
 ---
 
 ### 🏆 10 PUAN — Kullanıcı Dostu Çalışma
-
 **"Kullanıcıların rahatlıkla anlayabileceği, kullanabileceği bir ürün mü?"**
 
 **Katmanlı Sadelik Prensibi**
@@ -231,6 +214,11 @@ Uygulama kasıtlı olarak 4 sayfadan oluşur. Karmaşıklık görünmez — deri
 **Harcamalar:** Grafik + liste birlikte sunulur. Kategoriye tıklandığında o kategorinin işlemleri açılır. Abonelikler kategorisinde puanlama yapılabilir.
 
 **Asistan:** Sohbet arayüzü. Kullanıcı kendi verisine bakarak soru sorar.
+
+**Streaming Progress UI**
+Pipeline çalışırken kullanıcıya adım adım geri bildirim verilir:
+"PDF okunuyor... → Harcamalar kategorize ediliyor... → Ekonomik veriler yükleniyor... → Borç haritanız çiziliyor... → Planınız hazırlanıyor..."
+Bekleme süresi bir deneyime dönüşür.
 
 **"Vay Be" Anı Tasarımı**
 İlk PDF yüklemesinden sonra kullanıcı "bunu hiç bilmiyordum" hissini yaşamalı. Bu an ne kadar çarpıcı olursa kullanıcı o kadar bağlanır. Tüm UX bu ana göre tasarlanmıştır.
@@ -255,17 +243,14 @@ Bu 4 sorunun kombinasyonu uygulamanın hangi özellikleri öne çıkaracağını
 ## 5. Teknik Altyapı — Detaylı
 
 ### AI Motoru
-
 **Gemini 2.0 Flash** — hız ve doğruluk dengesi, ücretsiz tier günde 1.500 istek.
 
 ### Agent Mimarisi
-
 **LangGraph** ile yönlü asiklik graf (DAG) üzerinde ajan akışı yönetilir. Her ajan bir node, her geçiş bir edge. Koşullu dallanma desteklenir — örneğin kullanıcının konut kredisi yoksa Veri Zenginleştirme Ajanı KFE çekmez, zamanı ve API kotasını boşa harcamaz.
 
-**A2A Protocol** ile ajanlar arası mesaj formatı standartlaştırılmıştır. Her ajan gelen görevi parse eder, işler, bir sonrakine iletir.
+Ajanlar arası iletişim LangGraph'ın yerleşik state yönetimiyle sağlanır. Her node önceki node'un state'ini alır, işler, günceller ve bir sonrakine iletir. Bu yaklaşım hem daha stabil hem de daha az karmaşıktır.
 
 ### Veri Mimarisi (Firebase Firestore)
-
 ```
 users/{userId}
   ├── profile (onboarding cevapları, para kişiliği)
@@ -284,16 +269,14 @@ users/{userId}
 Veriler üzerine yazılmaz — her ay yeni snapshot eklenir. Bu yapı hem ilerleme grafiğini hem de AI'ın karşılaştırmalı analizini besler.
 
 ### TCMB EVDS API Entegrasyonu
-
 - Endpoint: evds2.tcmb.gov.tr
 - Ücretsiz API key ile erişim
 - Çekilen veriler: KFE (Konut Fiyat Endeksi), YKKE (Yeni Kiracı Kira Endeksi), TÜFE, kredi faiz oranları
-- Cache mekanizması: Veriler günlük çekilir, Firestore'da saklanır — her kullanıcı isteğinde API çağrısı yapılmaz
+- **Cache-first mimari:** Veriler günlük çekilir, Firestore'da saklanır — her kullanıcı isteğinde API çağrısı yapılmaz
+- **Fallback değerler:** TCMB erişilemez durumdaysa hardcode değerler devreye girer (TÜFE: %65, KFE: %34, azami faiz: %4.5, asgari ücret: 22.104₺)
 
 ### RAG Mimarisi
-
 Her Gemini API çağrısına sistem prompt olarak şu bağlam eklenir:
-
 ```
 Türkiye ekonomik bağlamı (güncel):
 - TÜFE: %{tüfe}
@@ -328,6 +311,8 @@ Veri girişi — PDF yükle veya manuel gir
 Multi-agent pipeline çalışır (arka planda)
 PDF Agent → Kategorizasyon → Veri Zenginleştirme → Analiz → Öneri
       ↓
+Streaming Progress UI — adım adım kullanıcıya gösterilir
+      ↓
 Ana sayfa açılır:
 Finansal sağlık skoru + nakit durumu + 3 aksiyon
       ↓
@@ -340,50 +325,55 @@ Ay sonu bildirim → Yeni PDF → Karşılaştırmalı analiz → Güncellenen p
 
 ---
 
-## 7. Özellikler — Tam Liste
+## 7. Özellikler
 
-1. **PDF ekstresi okuma** — Gemini File API, çoklu banka desteği
+### 🟢 MVP — Demo'da Olan Özellikler
+1. **PDF ekstresi okuma** — Gemini File API, Ziraat Bankası + Halkbank desteği
 2. **Harcama kategorizasyonu** — grafik + liste, kategoriye tıklayınca detay
-3. **Abonelik puanlama** (1-5) — yıllık maliyet gösterimi, isteğe bağlı
-4. **Nakit akışı görselleştirmesi** — aylık gelir-gider dengesi
-5. **Borç haritası** — krediye tıklayınca kalan ay + faiz oranı + toplam maliyet
-6. **Borç sınıflandırması** — stratejik / gri bölge / kötü borç (TCMB verisiyle)
-7. **Borç çıkış planı** — Avalanche veya Snowball, aylık ödeme sırası
-8. **Finansal sağlık skoru** (0-100) — her ay güncellenir
+3. **Borç haritası** — krediye tıklayınca kalan ay + faiz oranı + toplam maliyet
+4. **Finansal sağlık skoru** (0-100)
+5. **Borç çıkış planı** — Avalanche veya Snowball, aylık ödeme sırası
+6. **"Bu ay ne yapmalıyım?"** — 3 somut aksiyon, AI üretir
+7. **Streaming Progress UI** — pipeline adımları kullanıcıya canlı gösterilir
+
+### 🔵 v1.1 — MVP Sonrası Eklenecek Özellikler
+8. **Abonelik puanlama** (1-5) — yıllık maliyet gösterimi
 9. **Senaryo simülatörü** — gelecek odaklı, iki senaryoyu karşılaştırır
-10. **Gerçek fiyat etiketi** — taksitli alımın toplam maliyeti
-11. **Para kişiliği analizi** — onboarding'den çıkarılır, tüm dili etkiler
-12. **"Bu ay ne yapmalıyım?"** — 3 somut aksiyon, AI üretir
-13. **Hedef birikim takibi** — aylık ilerleme görselleştirmesi
-14. **Aylık özet raporu** — geçen ayla karşılaştırma
-15. **Yapay zeka sohbet asistanı** — kullanıcının kendi verisine bakarak Türkçe yanıt
-16. **Aylık güncelleme döngüsü** — yeni PDF + karşılaştırmalı analiz
+10. **Yapay zeka sohbet asistanı** — kullanıcının kendi verisine bakarak Türkçe yanıt
+11. **TCMB stratejik borç analizi** — konut kredisi varsa KFE ile değerlendirme
+12. **Nakit akışı görselleştirmesi** — aylık gelir-gider dengesi
+13. **Borç sınıflandırması** — stratejik / gri bölge / kötü borç
+14. **Para kişiliği analizi** — onboarding'den çıkarılır, tüm dili etkiler
+15. **Hedef birikim takibi** — aylık ilerleme görselleştirmesi
+16. **Aylık özet raporu** — geçen ayla karşılaştırma
+17. **Gerçek fiyat etiketi** — taksitli alımın toplam maliyeti
+18. **Aylık güncelleme döngüsü** — yeni PDF + karşılaştırmalı analiz
 
 ---
 
 ## 8. Teknoloji Yığını — Kesinleşmiş
 
-| Katman             | Teknoloji                     |
-| ------------------ | ----------------------------- |
-| AI motoru          | Gemini API (Gemini 2.0 Flash) |
-| PDF okuma          | Gemini File API               |
-| Agent orkestrasyon | LangGraph + LangChain         |
-| Agent iletişim     | A2A Protocol                  |
-| Backend            | FastAPI (Python)              |
-| Veritabanı         | Firebase (Firestore + Auth)   |
-| Frontend           | React + Recharts              |
-| Dış veri           | TCMB EVDS API                 |
+| Katman | Teknoloji |
+|---|---|
+| AI motoru | Gemini API (Gemini 2.0 Flash) |
+| PDF okuma | Gemini File API |
+| Agent orkestrasyon | LangGraph + LangChain |
+| Backend | FastAPI (Python) |
+| Veritabanı | Firebase (Firestore + Auth) |
+| Frontend | React + Recharts |
+| Dış veri | TCMB EVDS API (cache-first) |
 
 ---
 
-## 9. Gelecek Yol Haritası (MVP Sonrası)
+## 9. Gelecek Yol Haritası (v1.1 Sonrası)
 
 - Mobil uygulama (iOS / Android)
-- Daha fazla banka PDF formatı desteği
+- Daha fazla banka PDF formatı desteği (Garanti, İş Bankası, Akbank, Yapı Kredi)
 - Gemini Function Calling entegrasyonu
 - Açık bankacılık entegrasyonu (yasal altyapı oturduğunda)
+- Premium özellikler (detaylı raporlar, mali müşavir yönlendirme)
 
 ---
 
-_ParaPusula Proje Özeti v2 — BTK Akademi Hackathon 2026_
-_Tüm hakları saklıdır._
+*ParaPusula Proje Özeti v3 — BTK Akademi Hackathon 2026*
+*Tüm hakları saklıdır.*
