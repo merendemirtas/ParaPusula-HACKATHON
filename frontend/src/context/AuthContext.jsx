@@ -1,4 +1,5 @@
 // Firebase Auth durumunu tüm uygulamaya yayan context
+// KARAR: Token refresh Firebase SDK tarafından otomatik yapılır (1 saatlik JWT, 48 saatlik refresh token).
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import {
   onAuthStateChanged,

@@ -9,6 +9,8 @@ const ORNEK_SORULAR = [
   'Aboneliklerimi kessem ne olur?',
 ]
 
+const MAX_KARAKTER = 5000
+
 const KARSILAMA = 'Merhaba! Ben ParaPusula finansal asistanın. Banka ekstrene ve finansal durumuna bakarak sana özel cevap verebiliyorum. Aşağıdan örnek soruları seçebilir veya kendi sorunu yazabilirsin.'
 
 export default function ChatAssistant() {
@@ -38,6 +40,7 @@ export default function ChatAssistant() {
   async function gonder(metin) {
     const txt = (metin ?? giris).trim()
     if (!txt || yukleniyor) return
+    if (txt.length > MAX_KARAKTER) return
 
     const yeni = { id: Date.now(), kimden: 'kullanici', metin: txt, zaman: new Date() }
     setMesajlar(prev => [...prev, yeni])
@@ -160,23 +163,36 @@ export default function ChatAssistant() {
           maxWidth: 820, margin: '0 auto',
           display: 'flex', gap: 12, alignItems: 'flex-end',
         }}>
-          <textarea
-            ref={taRef}
-            value={giris}
-            onChange={(e) => setGiris(e.target.value)}
-            onKeyDown={tusBasildi}
-            placeholder="Finansal durumun hakkında bir soru sor..."
-            disabled={yukleniyor}
-            rows={1}
-            className="input"
-            style={{
-              resize: 'none', minHeight: 48, maxHeight: 140,
-              padding: '14px 16px', borderRadius: 'var(--radius-lg)',
-            }}
-          />
+          <div style={{ flex: 1, position: 'relative' }}>
+            <textarea
+              ref={taRef}
+              value={giris}
+              onChange={(e) => setGiris(e.target.value)}
+              onKeyDown={tusBasildi}
+              placeholder="Finansal durumun hakkında bir soru sor..."
+              disabled={yukleniyor}
+              rows={1}
+              className="input"
+              style={{
+                resize: 'none', minHeight: 48, maxHeight: 140,
+                padding: '14px 16px', borderRadius: 'var(--radius-lg)',
+                width: '100%',
+                borderColor: giris.length > MAX_KARAKTER ? 'var(--color-negative)' : undefined,
+              }}
+            />
+            {giris.length > 4000 && (
+              <p style={{
+                position: 'absolute', bottom: -18, right: 4,
+                margin: 0, fontSize: 11, fontWeight: 500,
+                color: giris.length > MAX_KARAKTER ? 'var(--color-negative)' : 'var(--text-tertiary)',
+              }}>
+                {giris.length}/{MAX_KARAKTER}
+              </p>
+            )}
+          </div>
           <button
             onClick={() => gonder()}
-            disabled={!giris.trim() || yukleniyor}
+            disabled={!giris.trim() || yukleniyor || giris.length > MAX_KARAKTER}
             className="btn btn-primary"
             style={{
               width: 48, height: 48, padding: 0, borderRadius: 'var(--radius-lg)',

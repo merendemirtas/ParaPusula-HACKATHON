@@ -23,12 +23,35 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// Yanıt interceptor - hata yönetimi
+// Yanıt interceptor - HTTP durum koduna göre Türkçe hata mesajı
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const mesaj = error.response?.data?.detail || error.message || 'Bilinmeyen hata'
-    console.error(`[API] Hata: ${mesaj}`)
+    if (!error.response) {
+      // Ağ hatası — backend'e ulaşılamadı
+      const agHatasi = 'İnternet bağlantını veya sunucu durumunu kontrol et.'
+      console.error('[API] Ağ hatası:', error.message)
+      return Promise.reject(new Error(agHatasi))
+    }
+
+    const status = error.response.status
+    const detay  = error.response?.data?.detail
+
+    let mesaj
+    switch (status) {
+      case 400: mesaj = detay || 'Geçersiz istek. Lütfen bilgileri kontrol edin.'; break
+      case 401:
+      case 403: mesaj = detay || 'Erişim reddedildi. Lütfen tekrar giriş yapın.'; break
+      case 404: mesaj = detay || 'İstenen kaynak bulunamadı.'; break
+      case 413: mesaj = detay || "Dosya çok büyük. Maksimum 10 MB yükleyebilirsiniz."; break
+      case 422: mesaj = detay || 'İşlem tamamlanamadı. Lütfen tekrar deneyin.'; break
+      case 429: mesaj = detay || 'AI servisi meşgul. Lütfen 1-2 dakika bekleyip tekrar deneyin.'; break
+      case 500: mesaj = detay || 'Sunucu hatası oluştu. Lütfen tekrar deneyin.'; break
+      case 503: mesaj = detay || 'Gemini API günlük kotası dolmuş. Lütfen birkaç saat sonra deneyin.'; break
+      default:  mesaj = detay || error.message || 'Beklenmeyen bir hata oluştu.'
+    }
+
+    console.error(`[API] ${status} Hata: ${mesaj}`)
     return Promise.reject(new Error(mesaj))
   }
 )
