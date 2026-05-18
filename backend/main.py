@@ -18,7 +18,6 @@ from routers import upload, analysis, chat, tcmb, onboarding
 # Geçici dosya dizini
 TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
 
-
 # ─────────────────────────────────────────────
 # Uygulama Yaşam Döngüsü
 # ─────────────────────────────────────────────
