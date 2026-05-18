@@ -33,3 +33,6 @@ backend/temp/
 # Firebase credentials (ayrı dosyaya konulursa)
 serviceAccountKey.json
 firebase-credentials.json
+
+# MCP server config (API key içerir)
+.mcp.json

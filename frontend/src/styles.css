@@ -1,0 +1,310 @@
+/* ────────────────────────────────────────────────────────
+   ParaPusula - Design System (2026 Modern Finance UI)
+   Referans: Linear, Stripe, Revolut, Notion, Vercel
+   ──────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* ── Renk Paleti ──────────────────────────────────────── */
+  --color-primary:        #0F4C3A;          /* Koyu yeşil — para güveni */
+  --color-primary-light:  #167256;
+  --color-primary-soft:   #E6F4EF;
+  --color-secondary:      #0F172A;          /* Koyu lacivert */
+  --color-accent:         #F59E0B;          /* Altın sarı uyarı */
+  --color-positive:       #10B981;
+  --color-negative:       #EF4444;
+  --color-warning:        #F59E0B;
+
+  /* ── Yüzeyler ─────────────────────────────────────────── */
+  --bg-page:              #FAFAFA;
+  --bg-surface:           #FFFFFF;
+  --bg-elevated:          rgba(255, 255, 255, 0.85);
+  --bg-glass:             rgba(255, 255, 255, 0.7);
+
+  /* ── Metin ────────────────────────────────────────────── */
+  --text-primary:         #0F172A;
+  --text-secondary:       #475569;
+  --text-tertiary:        #94A3B8;
+  --text-inverse:         #FFFFFF;
+
+  /* ── Çizgiler ─────────────────────────────────────────── */
+  --border-subtle:        rgba(15, 23, 42, 0.06);
+  --border-default:       rgba(15, 23, 42, 0.10);
+  --border-strong:        rgba(15, 23, 42, 0.16);
+
+  /* ── Gölgeler (yumuşak, modern) ───────────────────────── */
+  --shadow-xs:            0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:            0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md:            0 4px 16px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-lg:            0 8px 32px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-xl:            0 16px 48px rgba(15, 23, 42, 0.10), 0 4px 8px rgba(15, 23, 42, 0.04);
+  --shadow-glow:          0 0 0 4px rgba(15, 76, 58, 0.08);
+
+  /* ── Radius (yuvarlak, modern) ────────────────────────── */
+  --radius-sm:            8px;
+  --radius-md:            12px;
+  --radius-lg:            16px;
+  --radius-xl:            20px;
+  --radius-2xl:           24px;
+  --radius-full:          9999px;
+
+  /* ── Spacing ──────────────────────────────────────────── */
+  --space-1:              4px;
+  --space-2:              8px;
+  --space-3:              12px;
+  --space-4:              16px;
+  --space-5:              20px;
+  --space-6:              24px;
+  --space-8:              32px;
+  --space-10:             40px;
+  --space-12:             48px;
+  --space-16:             64px;
+
+  /* ── Geçişler ─────────────────────────────────────────── */
+  --transition-fast:      150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base:      200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:      300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring:    400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Global Sıfırlama ────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Tipografi Yardımcıları ──────────────────────────────── */
+.heading-xl  { font-size: 48px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+.heading-lg  { font-size: 36px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
+.heading-md  { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.heading-sm  { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.3; }
+.text-body   { font-size: 15px; font-weight: 400; line-height: 1.6; color: var(--text-secondary); }
+.text-small  { font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--text-tertiary); }
+.text-tiny   { font-size: 11px; font-weight: 500; line-height: 1.4; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* ── Animasyonlar ────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+@keyframes checkmark {
+  0%   { stroke-dashoffset: 50; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-fade-in     { animation: fadeIn 400ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.animate-fade-in-up  { animation: fadeInUp 500ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.animate-fade-scale  { animation: fadeInScale 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-spin        { animation: spin 1s linear infinite; }
+.animate-pulse       { animation: pulse 2s ease-in-out infinite; }
+
+/* ── Kart Bileşeni ───────────────────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-6);
+  transition: all var(--transition-base);
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+.card-interactive {
+  cursor: pointer;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ── Glassmorphism ───────────────────────────────────────── */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Butonlar ────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--text-inverse);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-light);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--border-subtle);
+  color: var(--text-primary);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-lg {
+  padding: 16px 28px;
+  font-size: 15px;
+  border-radius: var(--radius-lg);
+}
+
+/* ── Form ────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+.input:focus {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow);
+}
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* ── Badge ────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.badge-positive { background: rgba(16, 185, 129, 0.1);  color: #047857; }
+.badge-negative { background: rgba(239, 68, 68, 0.1);   color: #B91C1C; }
+.badge-warning  { background: rgba(245, 158, 11, 0.1);  color: #B45309; }
+.badge-neutral  { background: rgba(15, 23, 42, 0.06);   color: var(--text-secondary); }
+.badge-primary  { background: var(--color-primary-soft); color: var(--color-primary); }
+
+/* ── Skeleton Loader ─────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 50%, #F1F5F9 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Scrollbar (subtle) ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ── Mobile Bottom Nav (görünür yalnız mobile'da) ────────── */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}

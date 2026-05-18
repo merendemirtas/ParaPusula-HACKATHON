@@ -1,31 +1,30 @@
+// KARAR: Modal'da body scroll lock + ESC dinleyici; query param ile gelen kategori otomatik açılır.
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell
+  ResponsiveContainer, Cell,
 } from 'recharts'
 import { getAnalysis } from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
+import EmptyState from './EmptyState.jsx'
 
 const RENKLER = [
-  '#2b6cb0', '#38a169', '#d69e2e', '#e53e3e',
-  '#805ad5', '#dd6b20', '#319795', '#e91e63',
-  '#00bcd4', '#ff5722',
+  '#0F4C3A', '#167256', '#10B981', '#F59E0B',
+  '#7C3AED', '#EC4899', '#06B6D4', '#84CC16',
+  '#0F172A', '#475569',
 ]
 
 const paraDuzenle = (sayi) => {
-  if (!sayi && sayi !== 0) return '0 TL'
-  return new Intl.NumberFormat('tr-TR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.abs(sayi)) + ' TL'
+  if (!sayi && sayi !== 0) return '0 ₺'
+  return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+    .format(Math.abs(sayi)) + ' ₺'
 }
 
 const tarihDuzenle = (tarih) => {
   if (!tarih) return ''
   try {
-    return new Date(tarih).toLocaleDateString('tr-TR', {
-      day: '2-digit', month: 'short'
-    })
+    return new Date(tarih).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })
   } catch {
     return tarih
   }
@@ -33,50 +32,53 @@ const tarihDuzenle = (tarih) => {
 
 export default function Expenses() {
   const navigate = useNavigate()
-  const userId = localStorage.getItem('parapusula_user_id') || ''
+  const location = useLocation()
+  const { kullanici } = useAuth()
+  const userId = kullanici?.uid || localStorage.getItem('parapusula_user_id') || ''
 
   const [analiz, setAnaliz] = useState(null)
   const [yukleniyor, setYukleniyor] = useState(true)
-  const [secilenKategori, setSecilenKategori] = useState(null)
   const [hata, setHata] = useState('')
+  const [secilen, setSecilen] = useState(null)
 
   useEffect(() => {
-    analizGetir()
-  }, [userId])
-
-  const analizGetir = async () => {
     if (!userId) return
     setYukleniyor(true)
-    try {
-      const veri = await getAnalysis(userId)
-      setAnaliz(veri)
-    } catch (err) {
-      if (err.message?.includes('404')) {
-        setHata('yok')
-      } else {
-        setHata(err.message || 'Veri yuklenemedi.')
-      }
-    } finally {
-      setYukleniyor(false)
+    getAnalysis(userId)
+      .then(setAnaliz)
+      .catch(err => setHata(err.message?.includes('404') ? 'yok' : err.message))
+      .finally(() => setYukleniyor(false))
+  }, [userId])
+
+  // Query param ile kategori açma
+  useEffect(() => {
+    if (!analiz) return
+    const params = new URLSearchParams(location.search)
+    const kat = params.get('kategori')
+    if (kat) setSecilen(kat)
+  }, [analiz, location.search])
+
+  // ESC ile modal kapat + body scroll lock
+  useEffect(() => {
+    if (!secilen) return
+    const handler = (e) => { if (e.key === 'Escape') setSecilen(null) }
+    document.addEventListener('keydown', handler)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handler)
+      document.body.style.overflow = ''
     }
-  }
-
-  const sayfaStyle = {
-    minHeight: 'calc(100vh - 56px)',
-    backgroundColor: '#f0f4f8',
-    padding: '32px 24px',
-  }
-
-  const konteynerStyle = {
-    maxWidth: '1000px',
-    margin: '0 auto',
-  }
+  }, [secilen])
 
   if (yukleniyor) {
     return (
-      <div style={sayfaStyle}>
-        <div style={{ ...konteynerStyle, textAlign: 'center', paddingTop: '80px' }}>
-          <p style={{ color: '#718096', fontSize: '18px' }}>Harcamalar yukleniyor...</p>
+      <div style={sayfaStil}>
+        <div style={konteynerStil}>
+          <div className="skeleton" style={{ height: 40, width: '40%', marginBottom: 24 }} />
+          <div className="skeleton" style={{ height: 320, marginBottom: 24 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+            {[...Array(8)].map((_, i) => <div key={i} className="skeleton" style={{ height: 120 }} />)}
+          </div>
         </div>
       </div>
     )
@@ -84,24 +86,21 @@ export default function Expenses() {
 
   if (hata === 'yok' || !analiz) {
     return (
-      <div style={sayfaStyle}>
-        <div style={{ ...konteynerStyle, textAlign: 'center', paddingTop: '80px' }}>
-          <h2 style={{ color: '#1a202c', marginBottom: '12px' }}>Henuz analiz bulunamadi</h2>
-          <p style={{ color: '#718096', marginBottom: '24px' }}>
-            Harcama analizini gormek icin banka ekstreni yukle.
-          </p>
-          <button onClick={() => navigate('/upload')} style={{
-            padding: '14px 32px', backgroundColor: '#2b6cb0', color: '#fff',
-            border: 'none', borderRadius: '10px', fontSize: '16px', cursor: 'pointer', fontFamily: 'inherit'
-          }}>
-            PDF Yukle
-          </button>
+      <div style={sayfaStil}>
+        <div style={konteynerStil}>
+          <EmptyState
+            icon={<svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v18h18" /><path d="M7 15l4-4 4 4 5-6" />
+            </svg>}
+            baslik="Harcama verisi yok"
+            aciklama="Detaylı harcama analizini görmek için banka ekstreni yükle."
+            action={<button onClick={() => navigate('/upload')} className="btn btn-primary btn-lg">PDF Yükle</button>}
+          />
         </div>
       </div>
     )
   }
 
-  // Sadece gider kategorileri
   const giderKategorileri = (analiz.kategoriler || [])
     .filter(k => k.toplam_tutar < 0)
     .map((k, i) => ({
@@ -111,192 +110,216 @@ export default function Expenses() {
     }))
     .sort((a, b) => b.tutar - a.tutar)
 
-  // Bar grafik verisi
   const grafikVerisi = giderKategorileri.slice(0, 10).map(k => ({
-    name: k.kategori_adi.length > 14 ? k.kategori_adi.slice(0, 14) + '...' : k.kategori_adi,
+    name: k.kategori_adi.length > 12 ? k.kategori_adi.slice(0, 12) + '...' : k.kategori_adi,
     tamIsim: k.kategori_adi,
     tutar: k.tutar,
     renk: k.renk,
   }))
 
-  // Secilen kategori
-  const secilenKategoriDetay = secilenKategori
-    ? giderKategorileri.find(k => k.kategori_adi === secilenKategori)
-    : null
+  const secilenDetay = secilen ? giderKategorileri.find(k => k.kategori_adi === secilen) : null
 
   return (
-    <div style={sayfaStyle}>
-      <div style={konteynerStyle}>
-        {/* Baslik */}
-        <div style={{ marginBottom: '28px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1a202c', marginBottom: '4px' }}>
-            Harcamalarim
-          </h1>
-          <p style={{ color: '#718096', fontSize: '14px' }}>
-            Kategoriye tikla, detayli islemleri gor.
+    <div style={sayfaStil}>
+      <div style={konteynerStil}>
+        <div style={{ marginBottom: 32 }}>
+          <h1 className="heading-lg">Harcamalarım</h1>
+          <p className="text-body" style={{ marginTop: 4 }}>
+            Kategoriye tıkla, işlemlerini incele.
           </p>
         </div>
 
-        {/* Bar Grafik */}
+        {/* Bar chart */}
+        {grafikVerisi.length > 0 && (
+          <div className="card" style={{ padding: 28, marginBottom: 24 }}>
+            <h2 className="heading-sm" style={{ marginBottom: 20 }}>Kategoriye Göre Toplam</h2>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={grafikVerisi} margin={{ top: 5, right: 12, left: 0, bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
+                  angle={-30} textAnchor="end" interval={0} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                  tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
+                  axisLine={false} tickLine={false} />
+                <Tooltip
+                  formatter={(v, _, p) => [paraDuzenle(v), p.payload?.tamIsim || 'Tutar']}
+                  contentStyle={{
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-default)',
+                    boxShadow: 'var(--shadow-md)',
+                  }}
+                  cursor={{ fill: 'rgba(15,76,58,0.04)' }}
+                />
+                <Bar dataKey="tutar" radius={[8, 8, 0, 0]} cursor="pointer"
+                  onClick={(d) => setSecilen(d.tamIsim)}>
+                  {grafikVerisi.map((entry, i) => (
+                    <Cell key={i} fill={entry.renk} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Kategori grid */}
         <div style={{
-          backgroundColor: '#fff', borderRadius: '14px', padding: '24px',
-          marginBottom: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.06)'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: 16,
         }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1a202c', marginBottom: '20px' }}>
-            Kategoriye Gore Harcamalar
-          </h2>
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={grafikVerisi} margin={{ top: 5, right: 20, left: 20, bottom: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 12, fill: '#718096' }}
-                angle={-35}
-                textAnchor="end"
-                interval={0}
-              />
-              <YAxis
-                tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
-                tick={{ fontSize: 12, fill: '#718096' }}
-              />
-              <Tooltip
-                formatter={(value, _, props) => [
-                  paraDuzenle(value),
-                  props.payload?.tamIsim || 'Tutar'
-                ]}
-                labelFormatter={(label) => label}
-              />
-              <Bar
-                dataKey="tutar"
-                radius={[6, 6, 0, 0]}
-                cursor="pointer"
-                onClick={(data) => setSecilenKategori(data.tamIsim)}
-              >
-                {grafikVerisi.map((entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={secilenKategori === entry.tamIsim ? '#1a365d' : entry.renk}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <p style={{ fontSize: '12px', color: '#a0aec0', textAlign: 'center', marginTop: '8px' }}>
-            Bir cubuga tiklayarak o kategorinin islemlerini inceleyin
-          </p>
-        </div>
-
-        {/* Kategori Listesi */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginBottom: '24px' }}>
           {giderKategorileri.map((k, i) => (
             <button
               key={i}
-              onClick={() => setSecilenKategori(secilenKategori === k.kategori_adi ? null : k.kategori_adi)}
+              onClick={() => setSecilen(k.kategori_adi)}
+              className="card card-interactive"
               style={{
-                padding: '16px',
-                backgroundColor: secilenKategori === k.kategori_adi ? k.renk : '#fff',
-                border: `2px solid ${k.renk}`,
-                borderRadius: '10px',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                transition: 'all 0.15s',
+                padding: 20, textAlign: 'left', cursor: 'pointer',
+                background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+                position: 'relative',
               }}
             >
+              <div style={{
+                width: 32, height: 4, borderRadius: 2,
+                background: k.renk, marginBottom: 12,
+              }} />
               <p style={{
-                fontSize: '13px', fontWeight: '600', marginBottom: '4px',
-                color: secilenKategori === k.kategori_adi ? '#fff' : '#1a202c'
-              }}>
-                {k.kategori_adi}
-                {k.abonelik_mi && (
-                  <span style={{ marginLeft: '6px', fontSize: '11px', opacity: 0.8 }}>
-                    [Abonelik]
-                  </span>
-                )}
-              </p>
-              <p style={{
-                fontSize: '16px', fontWeight: '700',
-                color: secilenKategori === k.kategori_adi ? '#fff' : k.renk
-              }}>
+                margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)',
+                marginBottom: 6,
+              }}>{k.kategori_adi}</p>
+              <p className="heading-sm" style={{ color: 'var(--text-primary)', marginBottom: 8 }}>
                 {paraDuzenle(k.tutar)}
               </p>
-              <p style={{
-                fontSize: '11px',
-                color: secilenKategori === k.kategori_adi ? 'rgba(255,255,255,0.8)' : '#718096'
-              }}>
-                {k.islem_sayisi} islem
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span className="text-tiny" style={{ textTransform: 'none', letterSpacing: 0 }}>
+                  {k.islem_sayisi} işlem
+                </span>
+                {k.abonelik_mi && (
+                  <span className="badge" style={{
+                    background: 'rgba(245,158,11,0.12)',
+                    color: '#B45309',
+                  }}>Abonelik</span>
+                )}
+              </div>
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Secilen kategorinin islemleri */}
-        {secilenKategoriDetay && (
+      {/* Modal */}
+      {secilenDetay && (
+        <Modal kategori={secilenDetay} onClose={() => setSecilen(null)} />
+      )}
+    </div>
+  )
+}
+
+function Modal({ kategori, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(15, 23, 42, 0.4)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16,
+        animation: 'fadeIn 200ms ease both',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="glass animate-fade-scale"
+        style={{
+          background: 'var(--bg-surface)',
+          width: '100%', maxWidth: 720, maxHeight: '85vh',
+          borderRadius: 'var(--radius-2xl)',
+          boxShadow: 'var(--shadow-xl)',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: '20px 24px',
+          borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex', alignItems: 'center', gap: 16,
+        }}>
           <div style={{
-            backgroundColor: '#fff', borderRadius: '14px', padding: '24px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-            borderTop: `4px solid ${secilenKategoriDetay.renk}`,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1a202c' }}>
-                {secilenKategoriDetay.kategori_adi}
-              </h2>
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <span style={{ fontSize: '20px', fontWeight: '700', color: secilenKategoriDetay.renk }}>
-                  {paraDuzenle(secilenKategoriDetay.tutar)}
-                </span>
-                <button
-                  onClick={() => setSecilenKategori(null)}
-                  style={{
-                    padding: '6px 14px', backgroundColor: '#f7fafc', border: '1px solid #e2e8f0',
-                    borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit', color: '#718096'
-                  }}
-                >
-                  Kapat
-                </button>
-              </div>
-            </div>
-
-            {/* Islem tablosu */}
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#718096', fontWeight: '600' }}>Tarih</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#718096', fontWeight: '600' }}>Aciklama</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#718096', fontWeight: '600' }}>Banka</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'right', color: '#718096', fontWeight: '600' }}>Tutar</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(secilenKategoriDetay.islemler || []).map((islem, i) => (
-                    <tr
-                      key={i}
-                      style={{
-                        borderBottom: '1px solid #f0f4f8',
-                        backgroundColor: i % 2 === 0 ? '#fff' : '#f7fafc'
-                      }}
-                    >
-                      <td style={{ padding: '12px', color: '#718096', whiteSpace: 'nowrap' }}>
-                        {tarihDuzenle(islem.tarih)}
-                      </td>
-                      <td style={{ padding: '12px', color: '#1a202c' }}>
-                        {islem.aciklama}
-                      </td>
-                      <td style={{ padding: '12px', color: '#718096' }}>
-                        {islem.banka}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600', color: islem.tur === 'gelir' ? '#38a169' : '#e53e3e' }}>
-                        {islem.tur === 'gelir' ? '+' : '-'}{paraDuzenle(islem.tutar)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            width: 8, height: 40, borderRadius: 4, background: kategori.renk, flexShrink: 0,
+          }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {kategori.kategori_adi}
+            </h2>
+            <p className="text-small" style={{ margin: '2px 0 0' }}>
+              {(kategori.islemler || []).length} işlem · Toplam {paraDuzenle(kategori.tutar)}
+            </p>
           </div>
-        )}
+          <button
+            onClick={onClose}
+            className="btn btn-ghost"
+            style={{ padding: 8, borderRadius: '50%', minWidth: 36, minHeight: 36 }}
+            aria-label="Kapat"
+          >
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 6l12 12M6 18L18 6" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: 'auto', padding: '8px 24px 24px' }}>
+          {(kategori.islemler || []).length === 0 ? (
+            <p className="text-body" style={{ textAlign: 'center', padding: 32 }}>İşlem bulunamadı.</p>
+          ) : (
+            <div>
+              {(kategori.islemler || []).map((islem, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  padding: '14px 0',
+                  borderBottom: i < kategori.islemler.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                }}>
+                  <div style={{
+                    width: 40, flexShrink: 0,
+                    fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 600,
+                    textAlign: 'center',
+                  }}>
+                    {tarihDuzenle(islem.tarih)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 14, color: 'var(--text-primary)', fontWeight: 500,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {islem.aciklama}
+                    </p>
+                    {islem.banka && (
+                      <p className="text-small" style={{ margin: '2px 0 0' }}>{islem.banka}</p>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: 15, fontWeight: 600,
+                    color: islem.tur === 'gelir' ? 'var(--color-positive)' : 'var(--color-negative)',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {islem.tur === 'gelir' ? '+' : '−'}{paraDuzenle(islem.tutar)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
+}
+
+const sayfaStil = {
+  minHeight: 'calc(100vh - 64px)',
+  background: 'var(--bg-page)',
+  padding: '32px 24px 100px',
+}
+
+const konteynerStil = {
+  maxWidth: 1100,
+  margin: '0 auto',
 }

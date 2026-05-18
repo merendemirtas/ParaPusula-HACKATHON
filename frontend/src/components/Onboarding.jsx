@@ -1,278 +1,285 @@
+// KARAR: Adımlar arasında otomatik geçiş YOK — kullanıcı kart seçer, "Devam" butonuyla ilerler. Bu daha kontrollü hissettirir.
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { onboarding } from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 
-// Onboarding soruları ve seçenekleri
 const ADIMLAR = [
   {
-    soru: 'Geliriniz nasil bir duzende?',
+    soru: 'Gelir düzenin nedir?',
+    aciklama: 'Sana özel öneriler için gelir yapını bilelim.',
     alan: 'gelir_duzeni',
     secenekler: [
-      { deger: 'sabit_maas', etiket: 'Sabit Maas', aciklama: 'Her ay belirli bir tarihte maas aliyorum' },
-      { deger: 'degisken', etiket: 'Degisken', aciklama: 'Serbest meslek, freelance veya komisyon bazli' },
-      { deger: 'ikisi_de', etiket: 'Ikisi de', aciklama: 'Hem sabit hem ek gelir kaynagim var' },
+      { deger: 'sabit_maas', etiket: 'Sabit Maaş', aciklama: 'Her ay aynı tarih ve tutarda maaş alıyorum',
+        ikon: <path d="M3 7h18M3 12h18M3 17h12" /> },
+      { deger: 'degisken', etiket: 'Değişken Gelir', aciklama: 'Freelance, komisyon veya serbest meslek',
+        ikon: <path d="M3 16l5-6 4 4 8-10" /> },
+      { deger: 'ikisi_de', etiket: 'İkisi de', aciklama: 'Sabit maaş + ek gelirlerim var',
+        ikon: <path d="M12 3v18M3 12h18" /> },
     ],
   },
   {
-    soru: 'Sunki finansal tablonuz nasildir?',
+    soru: 'Şu anki tablon nasıl?',
+    aciklama: 'Mevcut durumun startı belirlesin.',
     alan: 'mevcut_durum',
     secenekler: [
-      { deger: 'ay_sonu_bitiyor', etiket: 'Ay sonu para bitiyor', aciklama: 'Maasi zor yetistiriyorum, ay sonu daraliyor' },
-      { deger: 'idare_ediyorum', etiket: 'Idare ediyorum', aciklama: 'Cikiyorum ama fazlasi kalmiyor' },
-      { deger: 'duzenli_kaliyor', etiket: 'Duzenli para kaliyor', aciklama: 'Her ay bir miktar artirabiliyorum' },
+      { deger: 'ay_sonu_bitiyor', etiket: 'Ay sonu bitiyor', aciklama: 'Maaş gelmeden cebim boşalıyor',
+        ikon: <path d="M12 2v8m0 0l-3-3m3 3l3-3M5 20h14" /> },
+      { deger: 'idare_ediyorum', etiket: 'İdare ediyorum', aciklama: 'Çıkıyorum ama biriktiremiyorum',
+        ikon: <path d="M3 12h18" /> },
+      { deger: 'duzenli_kaliyor', etiket: 'Düzenli kalıyor', aciklama: 'Her ay artırabiliyorum',
+        ikon: <path d="M3 17l6-6 4 4 8-8" /> },
     ],
   },
   {
-    soru: 'En onemli finansal hedefiniz nedir?',
+    soru: 'Ana hedefin ne?',
+    aciklama: 'Yolculuğun pusulasını birlikte ayarlayalım.',
     alan: 'ana_hedef',
     secenekler: [
-      { deger: 'borctan_kurtulmak', etiket: 'Borctan kurtulmak', aciklama: 'Kredi kartlari, krediler, taksitler bitiyor' },
-      { deger: 'hedefe_birikim', etiket: 'Hedefe birikim yapmak', aciklama: 'Ev, araba, tatil veya emeklilik icin biriktiriyorum' },
-      { deger: 'harcamalari_anlamak', etiket: 'Harcamayi anlamak', aciklama: 'Param nereye gidiyor bilmek istiyorum' },
+      { deger: 'borctan_kurtulmak', etiket: 'Borçtan kurtulmak', aciklama: 'Kredi kartı, taksit ve kredilerimi bitirmek',
+        ikon: <path d="M6 6l12 12M6 18L18 6" /> },
+      { deger: 'hedefe_birikim', etiket: 'Hedefe birikim', aciklama: 'Ev, araba, tatil veya emeklilik için',
+        ikon: <path d="M12 2L3 9l9 13 9-13z" /> },
+      { deger: 'harcamalari_anlamak', etiket: 'Harcamayı anlamak', aciklama: 'Param nereye gidiyor görmek',
+        ikon: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></> },
     ],
   },
   {
-    soru: 'Harcama aliskanliginizi nasil tanimlarsiniz?',
+    soru: 'Harcama alışkanlığın?',
+    aciklama: 'Sana doğru tonu yakalayabilmemiz için.',
     alan: 'harcama_aliskanligi',
     secenekler: [
-      { deger: 'durtüsel', etiket: 'Durtüsel', aciklama: 'Anlinda karar veririm, plan yapmam zor' },
-      { deger: 'planli_ama_kayiyor', etiket: 'Planli ama kayiyor', aciklama: 'Butce yapiyorum ama tutturamiyorum' },
-      { deger: 'cok_tutumlu', etiket: 'Cok tutumlu', aciklama: 'Her kurusu hesap ediyorum, tasarruf benim icin onemli' },
+      { deger: 'durtüsel', etiket: 'Dürtüsel', aciklama: 'Anlık karar veririm, plan beni sıkar',
+        ikon: <path d="M13 2L3 14h7l-1 8 10-12h-7z" /> },
+      { deger: 'planli_ama_kayiyor', etiket: 'Planlı ama kayıyor', aciklama: 'Bütçe yapıyorum ama tutturamıyorum',
+        ikon: <path d="M3 6h18M3 12h18M3 18h12" /> },
+      { deger: 'cok_tutumlu', etiket: 'Çok tutumlu', aciklama: 'Her kuruşu hesap ederim',
+        ikon: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></> },
     ],
   },
 ]
 
 export default function Onboarding() {
   const navigate = useNavigate()
+  const { kullanici } = useAuth()
+  const { addToast } = useToast()
+
   const [adim, setAdim] = useState(0)
-  const [yanıtlar, setYanıtlar] = useState({})
+  const [yanitlar, setYanitlar] = useState({})
   const [yukleniyor, setYukleniyor] = useState(false)
+  const [tamamlandi, setTamamlandi] = useState(false)
   const [hata, setHata] = useState('')
 
   const mevcutAdim = ADIMLAR[adim]
-  const toplamAdim = ADIMLAR.length
-  const ilerleme = ((adim) / toplamAdim) * 100
+  const toplam = ADIMLAR.length
+  const secili = yanitlar[mevcutAdim.alan]
 
-  // Bir secenek secildiginde
-  const secenekSec = async (alan, deger) => {
-    const yeniYanıtlar = { ...yanıtlar, [alan]: deger }
-    setYanıtlar(yeniYanıtlar)
+  function secenekSec(deger) {
+    setYanitlar(prev => ({ ...prev, [mevcutAdim.alan]: deger }))
+  }
 
-    // Son adim ise formu gonder
-    if (adim === toplamAdim - 1) {
-      await formGonder(yeniYanıtlar)
+  async function devamEt() {
+    if (!secili) return
+    if (adim < toplam - 1) {
+      setAdim(adim + 1)
     } else {
-      // Kisa gecis animasyonu ile bir sonraki adima gec
-      setTimeout(() => setAdim(adim + 1), 200)
+      await formGonder()
     }
   }
 
-  // Formu API'ye gonder
-  const formGonder = async (tümYanıtlar) => {
-    setYukleniyor(true)
-    setHata('')
-
+  async function formGonder() {
+    setYukleniyor(true); setHata('')
     try {
-      // Benzersiz user_id olustur
-      const userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const userId = kullanici?.uid || localStorage.getItem('parapusula_user_id')
+      if (!userId) throw new Error('Oturum bulunamadı.')
 
-      const istek = {
+      await onboarding({
         user_id: userId,
-        gelir_duzeni: tümYanıtlar.gelir_duzeni,
-        mevcut_durum: tümYanıtlar.mevcut_durum,
-        ana_hedef: tümYanıtlar.ana_hedef,
-        harcama_aliskanligi: tümYanıtlar.harcama_aliskanligi,
-      }
-
-      await onboarding(istek)
-
-      // user_id'yi localStorage'a kaydet
+        gelir_duzeni: yanitlar.gelir_duzeni,
+        mevcut_durum: yanitlar.mevcut_durum,
+        ana_hedef: yanitlar.ana_hedef,
+        harcama_aliskanligi: yanitlar.harcama_aliskanligi,
+      })
       localStorage.setItem('parapusula_user_id', userId)
-
-      // Dashboard'a yonlendir
-      navigate('/dashboard')
+      setTamamlandi(true)
+      addToast('Profilin hazır! Pano açılıyor.', 'success')
+      setTimeout(() => navigate('/dashboard'), 2000)
     } catch (err) {
-      setHata(err.message || 'Bir hata olustu. Lutfen tekrar deneyin.')
+      setHata(err.message || 'Bir hata oluştu.')
       setYukleniyor(false)
     }
   }
 
-  // Stiller
-  const sayfaStyle = {
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #1a365d 0%, #2b6cb0 50%, #1a365d 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
-  }
-
-  const kartStyle = {
-    backgroundColor: '#fff',
-    borderRadius: '20px',
-    padding: '48px',
-    maxWidth: '560px',
-    width: '100%',
-    boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
-  }
-
-  const baslikStyle = {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1a202c',
-    marginBottom: '8px',
-    lineHeight: 1.3,
-  }
-
-  const altBaslikStyle = {
-    fontSize: '14px',
-    color: '#718096',
-    marginBottom: '32px',
-  }
-
-  const secenekStyle = (secili) => ({
-    display: 'block',
-    width: '100%',
-    textAlign: 'left',
-    padding: '16px 20px',
-    marginBottom: '12px',
-    border: `2px solid ${secili ? '#2b6cb0' : '#e2e8f0'}`,
-    borderRadius: '12px',
-    backgroundColor: secili ? '#ebf8ff' : '#fff',
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-    fontFamily: 'inherit',
-  })
-
-  const secenekBaslikStyle = {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#1a202c',
-    display: 'block',
-    marginBottom: '4px',
-  }
-
-  const secenekAciklamaStyle = {
-    fontSize: '13px',
-    color: '#718096',
-    display: 'block',
-  }
-
-  const ilerlemeKonteynerStyle = {
-    marginBottom: '36px',
-  }
-
-  const ilerlemeCubukStyle = {
-    height: '6px',
-    backgroundColor: '#e2e8f0',
-    borderRadius: '3px',
-    overflow: 'hidden',
-    marginTop: '8px',
-  }
-
-  const ilerlemeDolguStyle = {
-    height: '100%',
-    backgroundColor: '#2b6cb0',
-    borderRadius: '3px',
-    width: `${ilerleme}%`,
-    transition: 'width 0.3s ease',
-  }
-
-  if (yukleniyor) {
+  if (tamamlandi) {
     return (
-      <div style={sayfaStyle}>
-        <div style={{ ...kartStyle, textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '24px' }}>...</div>
-          <h2 style={{ color: '#2b6cb0', marginBottom: '8px' }}>Profiliniz olusturuluyor</h2>
-          <p style={{ color: '#718096' }}>Bir moment, finansal yolculugunuza hazirlaniyor</p>
+      <div style={sayfaStil}>
+        <div className="card animate-fade-scale" style={{ textAlign: 'center', maxWidth: 480, padding: 56 }}>
+          <div style={{
+            width: 88, height: 88, margin: '0 auto 20px',
+            borderRadius: '50%', background: 'var(--color-primary-soft)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width={44} height={44} viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12l5 5L20 7" />
+            </svg>
+          </div>
+          <h2 className="heading-md" style={{ marginBottom: 8 }}>Hoş geldin!</h2>
+          <p className="text-body">Pusulan ayarlandı, panona yönlendiriliyorsun.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={sayfaStyle}>
-      <div style={kartStyle}>
-        {/* Logo ve baslik */}
-        <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', fontWeight: '800', color: '#1a365d', marginBottom: '4px' }}>
-            ParaPusula
-          </div>
-          <div style={{ fontSize: '14px', color: '#718096' }}>
-            AI destekli kisisel finans analizi
-          </div>
+    <div style={sayfaStil}>
+      <div className="animate-fade-in" style={{ width: '100%', maxWidth: 760 }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 }}>
+          <svg width={32} height={32} viewBox="0 0 32 32">
+            <circle cx="16" cy="16" r="15" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" />
+            <path d="M16 6 L19 16 L16 26 L13 16 Z" fill="#F59E0B" />
+            <circle cx="16" cy="16" r="2" fill="#fff" />
+          </svg>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>ParaPusula</span>
         </div>
 
-        {/* Ilerleme cubugu */}
-        <div style={ilerlemeKonteynerStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#718096' }}>
-            <span>Adim {adim + 1} / {toplamAdim}</span>
-            <span>%{Math.round(((adim + 1) / toplamAdim) * 100)}</span>
-          </div>
-          <div style={ilerlemeCubukStyle}>
-            <div style={{ ...ilerlemeDolguStyle, width: `${((adim + 1) / toplamAdim) * 100}%` }} />
-          </div>
+        {/* Step indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 40 }}>
+          {ADIMLAR.map((_, i) => {
+            const tam = i < adim
+            const akt = i === adim
+            return (
+              <React.Fragment key={i}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: (tam || akt) ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)',
+                  border: akt ? '2px solid var(--color-accent)' : 'none',
+                  color: '#fff', fontSize: 14, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all var(--transition-base)',
+                  flexShrink: 0,
+                }}>
+                  {tam ? (
+                    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12l5 5L20 7" />
+                    </svg>
+                  ) : i + 1}
+                </div>
+                {i < ADIMLAR.length - 1 && (
+                  <div style={{
+                    flex: 1, maxWidth: 80, height: 2,
+                    background: tam ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)',
+                    transition: 'background var(--transition-base)',
+                  }} />
+                )}
+              </React.Fragment>
+            )
+          })}
         </div>
 
-        {/* Soru */}
-        <h2 style={baslikStyle}>{mevcutAdim.soru}</h2>
-        <p style={altBaslikStyle}>Size en uygun secenegi seçin</p>
+        {/* Kart */}
+        <div className="card" style={{ padding: '40px 32px' }}>
+          <p className="text-tiny" style={{ color: 'var(--color-primary)', marginBottom: 8 }}>
+            Adım {adim + 1} / {toplam}
+          </p>
+          <h2 className="heading-md" style={{ marginBottom: 8 }}>{mevcutAdim.soru}</h2>
+          <p className="text-body" style={{ marginBottom: 32 }}>{mevcutAdim.aciklama}</p>
 
-        {/* Secenekler */}
-        {mevcutAdim.secenekler.map((secenek) => {
-          const secili = yanıtlar[mevcutAdim.alan] === secenek.deger
-          return (
-            <button
-              key={secenek.deger}
-              style={secenekStyle(secili)}
-              onClick={() => secenekSec(mevcutAdim.alan, secenek.deger)}
-              onMouseEnter={(e) => {
-                if (!secili) e.currentTarget.style.borderColor = '#90cdf4'
-              }}
-              onMouseLeave={(e) => {
-                if (!secili) e.currentTarget.style.borderColor = '#e2e8f0'
-              }}
-            >
-              <span style={secenekBaslikStyle}>{secenek.etiket}</span>
-              <span style={secenekAciklamaStyle}>{secenek.aciklama}</span>
-            </button>
-          )
-        })}
-
-        {/* Geri butonu */}
-        {adim > 0 && (
-          <button
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#718096',
-              cursor: 'pointer',
-              fontSize: '14px',
-              marginTop: '16px',
-              padding: '8px',
-              fontFamily: 'inherit',
-            }}
-            onClick={() => setAdim(adim - 1)}
-          >
-            Geri don
-          </button>
-        )}
-
-        {/* Hata mesaji */}
-        {hata && (
+          {/* Seçenek kartları */}
           <div style={{
-            marginTop: '16px',
-            padding: '12px 16px',
-            backgroundColor: '#fff5f5',
-            border: '1px solid #fed7d7',
-            borderRadius: '8px',
-            color: '#c53030',
-            fontSize: '14px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 14,
+            marginBottom: 32,
           }}>
-            {hata}
+            {mevcutAdim.secenekler.map(s => {
+              const isSecili = secili === s.deger
+              return (
+                <button
+                  key={s.deger}
+                  onClick={() => secenekSec(s.deger)}
+                  className="card card-interactive"
+                  style={{
+                    textAlign: 'left',
+                    padding: 20,
+                    border: isSecili ? '2px solid var(--color-primary)' : '2px solid var(--border-subtle)',
+                    background: isSecili ? 'var(--color-primary-soft)' : 'var(--bg-surface)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    boxShadow: isSecili ? 'var(--shadow-md)' : 'var(--shadow-xs)',
+                  }}
+                >
+                  {isSecili && (
+                    <div style={{
+                      position: 'absolute', top: 12, right: 12,
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: 'var(--color-primary)', color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                    background: isSecili ? 'var(--color-primary)' : 'var(--color-primary-soft)',
+                    color: isSecili ? '#fff' : 'var(--color-primary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: 14,
+                  }}>
+                    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      {s.ikon}
+                    </svg>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                    {s.etiket}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    {s.aciklama}
+                  </p>
+                </button>
+              )
+            })}
           </div>
-        )}
+
+          {hata && (
+            <div style={{
+              marginBottom: 16,
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(239, 68, 68, 0.08)',
+              color: '#B91C1C', fontSize: 13, fontWeight: 500,
+            }}>{hata}</div>
+          )}
+
+          {/* Butonlar */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between' }}>
+            {adim > 0 ? (
+              <button className="btn btn-ghost" onClick={() => setAdim(adim - 1)}>
+                ← Geri
+              </button>
+            ) : <div />}
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={devamEt}
+              disabled={!secili || yukleniyor}
+            >
+              {yukleniyor ? 'Hazırlanıyor...' : (adim === toplam - 1 ? 'Tamamla' : 'Devam →')}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
+}
+
+const sayfaStil = {
+  minHeight: '100vh',
+  background: 'linear-gradient(135deg, #0A3528 0%, #0F4C3A 50%, #167256 100%)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 24,
 }

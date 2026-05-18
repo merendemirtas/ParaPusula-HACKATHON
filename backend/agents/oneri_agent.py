@@ -6,6 +6,7 @@ LangGraph pipeline'ının son adımı: aksiyon önerileri ve borç çıkış pla
 from models.schemas import PipelineState
 from services.gemini_service import gemini_service
 from services.firebase_service import firebase_service
+from agents.analiz_agent import borc_cikis_plani_hesapla
 
 
 async def oneri_agent_node(state: PipelineState) -> PipelineState:
@@ -43,6 +44,13 @@ async def oneri_agent_node(state: PipelineState) -> PipelineState:
 
         oneriler = oneri_sonucu.get("oneriler", [])
         borc_cikis_plani = oneri_sonucu.get("borc_cikis_plani")
+
+        # Gemini'nin önerdiği ekstra ödeme miktarını al, ay-ay tabloyu deterministik üret
+        borc_listesi = snapshot.get("borc_listesi", [])
+        if borc_listesi:
+            ekstra = float((borc_cikis_plani or {}).get("aylik_ekstra_odeme", 0)) or 1000
+            borc_cikis_plani = borc_cikis_plani_hesapla(borc_listesi, ekstra, max_ay=24)
+            print(f"[Öneri Agent] Borç çıkış planı: {len(borc_cikis_plani['adimlar'])} aylık adım üretildi")
 
         # Snapshot'ı önerilerle güncelle (Firestore'da)
         ay = snapshot.get("ay", "")

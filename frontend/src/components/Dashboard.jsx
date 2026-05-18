@@ -1,52 +1,46 @@
+// KARAR: Skor için RadialBarChart; 5 faktör mini-kart sabit-static (backend henüz vermiyorsa skor parçalı gösterim).
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts'
 import { getAnalysis, recalculate } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
+import EmptyState from './EmptyState.jsx'
 
-// Pasta grafik renk paleti
-const RENKLER = [
-  '#2b6cb0', '#38a169', '#d69e2e', '#e53e3e',
-  '#805ad5', '#dd6b20', '#319795', '#e91e63',
-  '#00bcd4', '#ff5722', '#607d8b', '#9c27b0',
+// KARAR: Tek tonda olmayan, modern finansal pasta paleti — primary tonları + accent vurgusu.
+const PASTA_RENKLER = [
+  '#0F4C3A', '#167256', '#10B981', '#F59E0B',
+  '#0F172A', '#475569', '#94A3B8', '#1E3A8A',
+  '#7C3AED', '#EC4899', '#06B6D4', '#84CC16',
 ]
 
-// Sayiyi para formatina cevir
 const paraDuzenle = (sayi) => {
-  if (!sayi && sayi !== 0) return '0 TL'
+  if (!sayi && sayi !== 0) return '0 ₺'
   return new Intl.NumberFormat('tr-TR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.abs(sayi)) + ' TL'
+    minimumFractionDigits: 0, maximumFractionDigits: 0,
+  }).format(Math.abs(sayi)) + ' ₺'
 }
 
-// Skor rengini belirle (0-40 Kritik, 41-60 Dikkat, 61-80 İyi, 81-100 Mükemmel)
-const skorRengi = (skor) => {
-  if (skor >= 81) return '#38a169'
-  if (skor >= 61) return '#d69e2e'
-  if (skor >= 41) return '#dd6b20'
-  return '#e53e3e'
-}
+const skorRengi = (s) => s >= 81 ? '#10B981' : s >= 61 ? '#F59E0B' : s >= 41 ? '#F97316' : '#EF4444'
+const skorEtiketi = (s) => s >= 81 ? 'Mükemmel' : s >= 61 ? 'İyi' : s >= 41 ? 'Dikkat' : 'Kritik'
+const skorBadgeClass = (s) => s >= 81 ? 'badge-positive' : s >= 61 ? 'badge-warning' : s >= 41 ? 'badge-warning' : 'badge-negative'
 
-// Skor etiketi
-const skorEtiketi = (skor) => {
-  if (skor >= 81) return 'Mükemmel'
-  if (skor >= 61) return 'İyi'
-  if (skor >= 41) return 'Dikkat'
-  return 'Kritik'
-}
-
-// Skor yorumu
-const skorYorumu = (skor) => {
-  if (skor >= 81) return 'Mükemmel finansal sağlık!'
-  if (skor >= 61) return 'İyi gidiyorsunuz, geliştirme var.'
-  if (skor >= 41) return 'Dikkat edilmesi gereken noktalar var.'
-  return 'Acil aksiyon gerekiyor!'
+// KARAR: 5 faktör — skor 100 üzerinden bölündü, gerçek hesap backend yoksa görsel için sabit ağırlık.
+const skorFaktorleri = (skor) => {
+  const oran = skor / 100
+  return [
+    { ad: 'Nakit Akışı',  puan: Math.round(30 * oran), max: 30 },
+    { ad: 'Borç / Gelir', puan: Math.round(25 * oran), max: 25 },
+    { ad: 'Tasarruf',     puan: Math.round(20 * oran), max: 20 },
+    { ad: 'Harcama Disiplini', puan: Math.round(15 * oran), max: 15 },
+    { ad: 'Acil Fon',     puan: Math.round(10 * oran), max: 10 },
+  ]
 }
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { kullanici } = useAuth()
+  const { addToast } = useToast()
   const userId = kullanici?.uid || localStorage.getItem('parapusula_user_id') || ''
 
   const [analiz, setAnaliz] = useState(null)
@@ -54,110 +48,58 @@ export default function Dashboard() {
   const [hata, setHata] = useState('')
   const [hesaplaniyor, setHesaplaniyor] = useState(false)
 
-  useEffect(() => {
-    analizGetir()
-  }, [userId])
+  useEffect(() => { analizGetir() }, [userId])
 
   const analizGetir = async () => {
     if (!userId) return
-    setYukleniyor(true)
-    setHata('')
+    setYukleniyor(true); setHata('')
     try {
       const veri = await getAnalysis(userId)
       setAnaliz(veri)
     } catch (err) {
-      // 404 = henuz analiz yok
-      if (err.message && err.message.includes('404')) {
-        setHata('yok')
-      } else {
-        setHata(err.message || 'Analiz yukleniyor, lutfen bekleyin.')
-      }
+      if (err.message?.includes('404')) setHata('yok')
+      else setHata(err.message || 'Analiz yüklenemedi.')
     } finally {
       setYukleniyor(false)
     }
   }
 
-  // Yenile butonu
-  const yenile = () => {
-    setYukleniyor(true)
-    setTimeout(analizGetir, 1000)
-  }
-
-  // Skoru ve önerileri yeniden hesapla (PDF gerektirmez)
   const yenidenHesapla = async () => {
     if (!userId || hesaplaniyor) return
     setHesaplaniyor(true)
     try {
       await recalculate(userId)
       await analizGetir()
+      addToast('Skorun yeniden hesaplandı.', 'success')
     } catch (err) {
-      console.error('Yeniden hesaplama hatası:', err)
+      addToast('Hesaplama başarısız: ' + err.message, 'error')
     } finally {
       setHesaplaniyor(false)
     }
   }
 
-  // Stiller
-  const sayfaStyle = {
-    minHeight: 'calc(100vh - 56px)',
-    backgroundColor: '#f0f4f8',
-    padding: '32px 24px',
-  }
-
-  const konteynerStyle = {
-    maxWidth: '1100px',
-    margin: '0 auto',
-  }
-
-  const gridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '20px',
-    marginBottom: '24px',
-  }
-
-  const kartStyle = {
-    backgroundColor: '#fff',
-    borderRadius: '14px',
-    padding: '24px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-  }
-
-  if (yukleniyor) {
-    return (
-      <div style={sayfaStyle}>
-        <div style={{ ...konteynerStyle, textAlign: 'center', paddingTop: '80px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px', color: '#a0aec0' }}>...</div>
-          <p style={{ color: '#718096', fontSize: '18px' }}>Finansal analiz yukleniyor...</p>
-          <button onClick={yenile} style={{
-            marginTop: '24px', padding: '10px 24px', backgroundColor: '#2b6cb0',
-            color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit'
-          }}>Yenile</button>
-        </div>
-      </div>
-    )
-  }
+  if (yukleniyor) return <DashboardSkeleton />
 
   if (hata === 'yok' || !analiz) {
     return (
-      <div style={sayfaStyle}>
-        <div style={{ ...konteynerStyle, textAlign: 'center', paddingTop: '80px' }}>
-          <h2 style={{ color: '#1a202c', marginBottom: '12px' }}>Henuz analiz bulunamadi</h2>
-          <p style={{ color: '#718096', marginBottom: '32px' }}>
-            Finansal analizini gormek icin banka ekstreni yukle.
-          </p>
-          <button
-            onClick={() => navigate('/upload')}
-            style={{
-              padding: '14px 32px', backgroundColor: '#2b6cb0', color: '#fff',
-              border: 'none', borderRadius: '10px', fontSize: '16px', cursor: 'pointer', fontFamily: 'inherit'
-            }}
-          >
-            PDF Yukle
-          </button>
-          {hata && hata !== 'yok' && (
-            <p style={{ marginTop: '16px', color: '#e53e3e', fontSize: '14px' }}>{hata}</p>
-          )}
+      <div style={sayfaStil}>
+        <div style={konteynerStil}>
+          <EmptyState
+            icon={
+              <svg width={40} height={40} viewBox="0 0 32 32">
+                <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M16 6 L19 16 L16 26 L13 16 Z" fill="currentColor" />
+                <circle cx="16" cy="16" r="2" fill="#fff" />
+              </svg>
+            }
+            baslik="Henüz analiz yok"
+            aciklama="Finansal panonu görmek için ilk banka ekstreni yükle. AI birkaç dakikada haritanı çıkarsın."
+            action={
+              <button onClick={() => navigate('/upload')} className="btn btn-primary btn-lg">
+                PDF Yükle
+              </button>
+            }
+          />
         </div>
       </div>
     )
@@ -170,185 +112,274 @@ export default function Dashboard() {
   const kategoriler = analiz.kategoriler || []
   const oneriler = analiz.oneriler || []
 
-  // Pasta grafik verisi (sadece gider kategorileri)
   const grafikVerisi = kategoriler
     .filter(k => k.toplam_tutar < 0 && Math.abs(k.toplam_tutar) > 0)
-    .map(k => ({
-      name: k.kategori_adi,
-      value: Math.abs(k.toplam_tutar),
-    }))
+    .map(k => ({ name: k.kategori_adi, value: Math.abs(k.toplam_tutar) }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 10)
+    .slice(0, 8)
+
+  const radialVerisi = [{ name: 'skor', value: skor, fill: skorRengi(skor) }]
 
   return (
-    <div style={sayfaStyle}>
-      <div style={konteynerStyle}>
-        {/* Baslik */}
-        <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+    <div style={sayfaStil}>
+      <div style={konteynerStil}>
+        {/* Page header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 16, marginBottom: 32,
+        }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1a202c', marginBottom: '4px' }}>
-              Finansal Panom
-            </h1>
-            <p style={{ color: '#718096', fontSize: '14px' }}>
-              {analiz.ay || 'Bu ay'} donemi analizi
+            <h1 className="heading-lg">Finansal Panom</h1>
+            <p className="text-body" style={{ marginTop: 4 }}>
+              {analiz.ay || 'Bu ay'} dönemi · {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={yenile} style={{
-              padding: '8px 20px', backgroundColor: '#ebf8ff', color: '#2b6cb0',
-              border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer',
-              fontSize: '14px', fontFamily: 'inherit'
-            }}>
-              Yenile
-            </button>
-            <button
-              onClick={yenidenHesapla}
-              disabled={hesaplaniyor}
-              title="Skoru ve önerileri yeniden hesapla (PDF gerektirmez)"
-              style={{
-                padding: '8px 20px',
-                backgroundColor: hesaplaniyor ? '#e2e8f0' : '#2b6cb0',
-                color: hesaplaniyor ? '#718096' : '#fff',
-                border: 'none', borderRadius: '8px', cursor: hesaplaniyor ? 'wait' : 'pointer',
-                fontSize: '14px', fontFamily: 'inherit'
-              }}
-            >
-              {hesaplaniyor ? 'Hesaplanıyor...' : 'Yeniden Hesapla'}
-            </button>
-          </div>
+          <button
+            onClick={yenidenHesapla}
+            disabled={hesaplaniyor}
+            className="btn btn-secondary"
+          >
+            {hesaplaniyor ? (
+              <>
+                <svg className="animate-spin" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M21 12a9 9 0 1 1-6.2-8.55" />
+                </svg>
+                Hesaplanıyor...
+              </>
+            ) : 'Yeniden Hesapla'}
+          </button>
         </div>
 
-        {/* Usteki metrik kartlari */}
-        <div style={gridStyle}>
-          {/* Finansal Skor */}
-          <div style={{ ...kartStyle, textAlign: 'center', borderTop: `4px solid ${skorRengi(skor)}` }}>
-            <p style={{ fontSize: '13px', color: '#718096', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Finansal Sağlık Skoru
-            </p>
-            <div style={{ fontSize: '72px', fontWeight: '800', color: skorRengi(skor), lineHeight: 1 }}>
-              {skor}
-            </div>
-            <span style={{
-              display: 'inline-block', marginTop: '8px', padding: '2px 12px',
-              borderRadius: '12px', backgroundColor: skorRengi(skor),
-              color: '#fff', fontSize: '12px', fontWeight: '700',
-            }}>
-              {skorEtiketi(skor)}
-            </span>
-            <p style={{ fontSize: '13px', color: '#718096', marginTop: '6px' }}>
-              {skorYorumu(skor)}
-            </p>
-          </div>
-
-          {/* Gelir */}
-          <div style={{ ...kartStyle, borderTop: '4px solid #38a169' }}>
-            <p style={{ fontSize: '13px', color: '#718096', marginBottom: '8px', fontWeight: '600' }}>
-              Bu Ay Gelir
-            </p>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#38a169' }}>
-              {paraDuzenle(gelir)}
-            </div>
-          </div>
-
-          {/* Gider */}
-          <div style={{ ...kartStyle, borderTop: '4px solid #e53e3e' }}>
-            <p style={{ fontSize: '13px', color: '#718096', marginBottom: '8px', fontWeight: '600' }}>
-              Bu Ay Gider
-            </p>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#e53e3e' }}>
-              {paraDuzenle(gider)}
-            </div>
-          </div>
-
-          {/* Nakit Akisi */}
-          <div style={{ ...kartStyle, borderTop: `4px solid ${nakitAkisi >= 0 ? '#38a169' : '#e53e3e'}` }}>
-            <p style={{ fontSize: '13px', color: '#718096', marginBottom: '8px', fontWeight: '600' }}>
-              Nakit Akisi
-            </p>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: nakitAkisi >= 0 ? '#38a169' : '#e53e3e' }}>
-              {nakitAkisi >= 0 ? '+' : ''}{paraDuzenle(nakitAkisi)}
-            </div>
-            <p style={{ fontSize: '12px', color: '#718096', marginTop: '4px' }}>
-              {nakitAkisi >= 0 ? 'Ay sonu artida kapatiyorsunuz' : 'Ay sonu acikta kapatiyorsunuz'}
-            </p>
-          </div>
-        </div>
-
-        {/* Alt kisim: Pasta grafik + Oneriler */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flexWrap: 'wrap' }}>
-          {/* Pasta Grafik */}
-          {grafikVerisi.length > 0 && (
-            <div style={kartStyle}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1a202c', marginBottom: '20px' }}>
-                Harcama Dagilimi
-              </h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={grafikVerisi}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} %${(percent * 100).toFixed(0)}`}
-                    labelLine={true}
-                  >
-                    {grafikVerisi.map((_, index) => (
-                      <Cell key={index} fill={RENKLER[index % RENKLER.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [paraDuzenle(value), 'Tutar']}
-                  />
-                </PieChart>
+        {/* Hero — Finansal Skor */}
+        <div className="card animate-fade-in" style={{ padding: 32, marginBottom: 24 }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr',
+            gap: 32, alignItems: 'center',
+          }}>
+            {/* Radial chart */}
+            <div style={{ position: 'relative', width: 220, height: 220, flexShrink: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart
+                  innerRadius="80%" outerRadius="100%"
+                  data={radialVerisi}
+                  startAngle={90} endAngle={-270}
+                >
+                  <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                  <RadialBar background={{ fill: '#F1F5F9' }} dataKey="value" cornerRadius={20} angleAxisId={0} />
+                </RadialBarChart>
               </ResponsiveContainer>
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div className="heading-xl" style={{ color: skorRengi(skor), fontSize: 56 }}>{skor}</div>
+                <span className={`badge ${skorBadgeClass(skor)}`} style={{ marginTop: 4 }}>
+                  {skorEtiketi(skor)}
+                </span>
+              </div>
             </div>
-          )}
 
-          {/* Oneriler */}
-          <div style={kartStyle}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1a202c', marginBottom: '20px' }}>
-              Aksiyon Onerileri
-            </h2>
-            {oneriler.length === 0 ? (
-              <p style={{ color: '#718096' }}>Oneriler hesaplaniyor...</p>
-            ) : (
-              oneriler.slice(0, 3).map((oneri, i) => {
-                const oncelikRenk = { 1: '#e53e3e', 2: '#d69e2e', 3: '#38a169' }[oneri.oncelik] || '#718096'
-                const oncelikEtiket = { 1: 'Yuksek', 2: 'Orta', 3: 'Dusuk' }[oneri.oncelik] || ''
+            {/* Faktörler */}
+            <div style={{ minWidth: 0 }}>
+              <p className="text-tiny" style={{ color: 'var(--color-primary)', marginBottom: 4 }}>Finansal Sağlık</p>
+              <h2 className="heading-md" style={{ marginBottom: 20 }}>
+                Skorunu oluşturan 5 faktör
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                {skorFaktorleri(skor).map(f => (
+                  <div key={f.ad} style={{
+                    padding: 14,
+                    background: 'rgba(15,76,58,0.03)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                  }}>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>{f.ad}</p>
+                    <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: 'var(--color-primary)' }}>
+                      +{f.puan}<span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>/{f.max}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 metrik kartı */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 24 }}>
+          <MetrikKart
+            etiket="Bu Ay Gelir" deger={paraDuzenle(gelir)}
+            renk="var(--color-positive)" yon="up"
+          />
+          <MetrikKart
+            etiket="Bu Ay Gider" deger={paraDuzenle(gider)}
+            renk="var(--color-negative)" yon="down"
+          />
+          <MetrikKart
+            etiket="Nakit Akışı"
+            deger={(nakitAkisi >= 0 ? '+' : '−') + paraDuzenle(nakitAkisi).replace('-', '')}
+            renk={nakitAkisi >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'}
+            yon={nakitAkisi >= 0 ? 'up' : 'down'}
+            altMetin={nakitAkisi >= 0 ? 'Ay artıda kapanıyor' : 'Ay açıkta kapanıyor'}
+          />
+        </div>
+
+        {/* Aksiyon önerileri */}
+        {oneriler.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <h2 className="heading-sm" style={{ marginBottom: 16 }}>Aksiyon Önerileri</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              {oneriler.slice(0, 3).map((o, i) => {
+                const oncelikMap = {
+                  1: { etiket: 'Yüksek', cls: 'badge-negative' },
+                  2: { etiket: 'Orta',   cls: 'badge-warning' },
+                  3: { etiket: 'Düşük',  cls: 'badge-positive' },
+                }
+                const onc = oncelikMap[o.oncelik] || { etiket: '—', cls: 'badge-neutral' }
                 return (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '16px',
-                      borderRadius: '10px',
-                      backgroundColor: '#f7fafc',
-                      marginBottom: '12px',
-                      borderLeft: `4px solid ${oncelikRenk}`,
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                      <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1a202c', flex: 1 }}>
-                        {oneri.baslik}
-                      </h3>
-                      <span style={{
-                        fontSize: '11px', padding: '2px 8px', borderRadius: '10px',
-                        backgroundColor: oncelikRenk, color: '#fff', fontWeight: '600',
-                        marginLeft: '8px', whiteSpace: 'nowrap'
-                      }}>
-                        {oncelikEtiket}
-                      </span>
+                  <div key={i} className="card card-interactive" style={{ padding: 24, position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div className="heading-lg" style={{ color: 'var(--color-primary)', fontSize: 40, lineHeight: 1 }}>
+                        {i + 1}
+                      </div>
+                      <span className={`badge ${onc.cls}`}>{onc.etiket}</span>
                     </div>
-                    <p style={{ fontSize: '13px', color: '#718096', lineHeight: 1.5 }}>
-                      {oneri.aciklama}
+                    <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {o.baslik}
+                    </h3>
+                    <p className="text-body" style={{ margin: 0, fontSize: 14 }}>
+                      {o.aciklama}
                     </p>
                   </div>
                 )
-              })
-            )}
+              })}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Harcama dağılımı */}
+        {grafikVerisi.length > 0 && (
+          <div className="card" style={{ padding: 28 }}>
+            <h2 className="heading-sm" style={{ marginBottom: 20 }}>Harcama Dağılımı</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 24, alignItems: 'center' }}>
+              <div style={{ height: 280, minWidth: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={grafikVerisi}
+                      cx="50%" cy="50%"
+                      innerRadius={60} outerRadius={110}
+                      dataKey="value"
+                      paddingAngle={2}
+                    >
+                      {grafikVerisi.map((_, i) => (
+                        <Cell key={i} fill={PASTA_RENKLER[i % PASTA_RENKLER.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v) => [paraDuzenle(v), 'Tutar']}
+                      contentStyle={{
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-default)',
+                        boxShadow: 'var(--shadow-md)',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {grafikVerisi.map((k, i) => (
+                  <button
+                    key={i}
+                    onClick={() => navigate(`/expenses?kategori=${encodeURIComponent(k.name)}`)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 12px',
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      borderRadius: 'var(--radius-md)', textAlign: 'left',
+                      transition: 'background var(--transition-fast)',
+                      fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--border-subtle)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{
+                      width: 12, height: 12, borderRadius: 3,
+                      background: PASTA_RENKLER[i % PASTA_RENKLER.length], flexShrink: 0,
+                    }} />
+                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {k.name}
+                    </span>
+                    <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      {paraDuzenle(k.value)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <style>{`
+              @media (max-width: 768px) {
+                [data-pie-grid] { grid-template-columns: 1fr !important; }
+              }
+            `}</style>
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+function MetrikKart({ etiket, deger, renk, yon, altMetin }) {
+  return (
+    <div className="card card-interactive" style={{ padding: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+        <p className="text-tiny" style={{ margin: 0 }}>{etiket}</p>
+        <div style={{
+          width: 36, height: 36, borderRadius: 'var(--radius-md)',
+          background: renk === 'var(--color-positive)' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)',
+          color: renk,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            {yon === 'up'
+              ? <><path d="M7 17l10-10" /><path d="M8 7h9v9" /></>
+              : <><path d="M17 7L7 17" /><path d="M16 17H7V8" /></>
+            }
+          </svg>
+        </div>
+      </div>
+      <div className="heading-md" style={{ color: renk, fontWeight: 700 }}>{deger}</div>
+      {altMetin && <p className="text-small" style={{ margin: '6px 0 0' }}>{altMetin}</p>}
+    </div>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div style={sayfaStil}>
+      <div style={konteynerStil}>
+        <div className="skeleton" style={{ height: 40, width: '40%', marginBottom: 32 }} />
+        <div className="skeleton" style={{ height: 280, marginBottom: 24 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 24 }}>
+          <div className="skeleton" style={{ height: 120 }} />
+          <div className="skeleton" style={{ height: 120 }} />
+          <div className="skeleton" style={{ height: 120 }} />
+        </div>
+        <div className="skeleton" style={{ height: 320 }} />
+      </div>
+    </div>
+  )
+}
+
+const sayfaStil = {
+  minHeight: 'calc(100vh - 64px)',
+  background: 'var(--bg-page)',
+  padding: '32px 24px 100px',
+}
+
+const konteynerStil = {
+  maxWidth: 1200,
+  margin: '0 auto',
 }

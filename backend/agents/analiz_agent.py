@@ -148,6 +148,122 @@ def borc_siniflandir(
     return {"siniflandirma": "gri", "faiz_orani": 3.0}
 
 
+def borc_cikis_plani_hesapla(
+    borc_listesi: list,
+    aylik_ekstra_odeme: float,
+    max_ay: int = 60
+) -> dict:
+    """
+    Avalanche yöntemiyle aylık borç ödeme planı üretir.
+
+    Algoritma:
+    1. Borçları faiz oranına göre büyükten küçüğe sırala
+    2. Her ay her borca minimum (aylık_odeme) öde
+    3. Ekstra ödeme her zaman en yüksek faizli aktif borca gider
+    4. Bir borç bitince ödemesi sıradaki en yüksek faizliye eklenir
+
+    Args:
+        borc_listesi: [{"aciklama","ana_para","faiz_orani","aylik_odeme",...}, ...]
+        aylik_ekstra_odeme: Minimum ödemenin üzerine yapılacak ek aylık ödeme
+        max_ay: En fazla kaç ay simüle edilsin (default 60 = 5 yıl)
+
+    Returns:
+        {"yontem": "avalanche", "toplam_borc": X, "aylik_ekstra_odeme": Y,
+         "tahmini_bitis_ay": "YYYY-MM", "adimlar": [...]}
+    """
+    from datetime import date
+
+    if not borc_listesi:
+        return {"yontem": "avalanche", "toplam_borc": 0,
+                "aylik_ekstra_odeme": aylik_ekstra_odeme,
+                "tahmini_bitis_ay": "", "adimlar": []}
+
+    # Borçları kopyala (orijinali bozmadan) ve faiz oranına göre büyükten küçüğe sırala
+    # KARAR: faiz_orani YILLIK yüzde olarak saklanır (DebtMap UI'da "%X yıllık" görünür).
+    # Aylık faiz = yıllık / 12 / 100  (örn: %4.5 yıllık → 0.00375 aylık)
+    borclar = []
+    for b in borc_listesi:
+        yillik_yuzde = float(b.get("faiz_orani", 3.0))
+        borclar.append({
+            "aciklama": b.get("aciklama", "Borç"),
+            "kalan": float(b.get("ana_para", 0)),
+            "aylik_faiz_orani": yillik_yuzde / 100.0 / 12.0,  # yıllık % → aylık ondalık
+            "min_odeme": float(b.get("aylik_odeme", 0)),
+        })
+    borclar.sort(key=lambda x: x["aylik_faiz_orani"], reverse=True)
+
+    toplam_borc_baslangic = sum(b["kalan"] for b in borclar)
+    serbest_ekstra = float(aylik_ekstra_odeme)  # Biten borçların min ödemesi buraya eklenir
+
+    adimlar = []
+    bugun = date.today()
+
+    for ay_no in range(max_ay):
+        # Tarih hesabı: bugünün ayından başla
+        toplam_ay = bugun.month + ay_no
+        yil = bugun.year + (toplam_ay - 1) // 12
+        ay = ((toplam_ay - 1) % 12) + 1
+        ay_str = f"{yil}-{ay:02d}"
+
+        # Her borca faiz tahakkuk + minimum ödeme
+        ay_toplam_odeme = 0.0
+        for b in borclar:
+            if b["kalan"] <= 0:
+                continue
+            # Faiz tahakkuku
+            b["kalan"] += b["kalan"] * b["aylik_faiz_orani"]
+            # Minimum ödeme uygula
+            odeme = min(b["min_odeme"], b["kalan"])
+            b["kalan"] -= odeme
+            ay_toplam_odeme += odeme
+
+        # Ekstra ödemeyi en yüksek faizli aktif borca uygula
+        bitecek_borc_adi = None
+        ekstra_kalan = serbest_ekstra
+        for b in borclar:
+            if b["kalan"] <= 0 or ekstra_kalan <= 0:
+                continue
+            uygulanacak = min(ekstra_kalan, b["kalan"])
+            b["kalan"] -= uygulanacak
+            ekstra_kalan -= uygulanacak
+            ay_toplam_odeme += uygulanacak
+            if b["kalan"] <= 0.01:
+                # Borç bitti — min ödemesini serbest ekstraya ekle
+                serbest_ekstra += b["min_odeme"]
+                bitecek_borc_adi = b["aciklama"]
+            break  # Avalanche: sadece en yüksek faizliye ekstra
+
+        # Bitenleri kontrol et (ekstra uygulamadan da bitebilirler)
+        for b in borclar:
+            if 0 < b["kalan"] <= 0.01:
+                b["kalan"] = 0
+                serbest_ekstra += b["min_odeme"]
+                if not bitecek_borc_adi:
+                    bitecek_borc_adi = b["aciklama"]
+
+        toplam_kalan = sum(max(0, b["kalan"]) for b in borclar)
+
+        adimlar.append({
+            "ay": ay_str,
+            "odeme_tutari": round(ay_toplam_odeme, 2),
+            "kalan_borc": round(toplam_kalan, 2),
+            "bitecek_borc": bitecek_borc_adi or "",
+        })
+
+        if toplam_kalan <= 0.01:
+            break
+
+    bitis_ay = adimlar[-1]["ay"] if adimlar else ""
+
+    return {
+        "yontem": "avalanche",
+        "toplam_borc": round(toplam_borc_baslangic, 2),
+        "aylik_ekstra_odeme": float(aylik_ekstra_odeme),
+        "tahmini_bitis_ay": bitis_ay,
+        "adimlar": adimlar,
+    }
+
+
 async def analiz_agent_node(state: PipelineState) -> PipelineState:
     """
     Pipeline'ın finansal analiz adımı:

@@ -7,7 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from services.firebase_service import firebase_service
 from services.gemini_service import gemini_service
-from agents.analiz_agent import finansal_skor_hesapla, borc_siniflandir
+from agents.analiz_agent import finansal_skor_hesapla, borc_siniflandir, borc_cikis_plani_hesapla
 
 router = APIRouter()
 
@@ -163,6 +163,11 @@ async def yeniden_hesapla(user_id: str):
             )
             oneriler = oneri_sonucu.get("oneriler", [])
             borc_cikis_plani = oneri_sonucu.get("borc_cikis_plani")
+            # Ay-ay adımları deterministik üret
+            if yeni_borclar:
+                ekstra = float((borc_cikis_plani or {}).get("aylik_ekstra_odeme", 0)) or 1000
+                borc_cikis_plani = borc_cikis_plani_hesapla(yeni_borclar, ekstra, max_ay=24)
+                print(f"[RECALCULATE] Borç çıkış planı: {len(borc_cikis_plani['adimlar'])} adım üretildi")
             print(f"[RECALCULATE] {len(oneriler)} öneri üretildi ✓")
         except Exception as oneri_hata:
             print(f"[RECALCULATE] Öneri üretme hatası (devam ediliyor): {oneri_hata}")

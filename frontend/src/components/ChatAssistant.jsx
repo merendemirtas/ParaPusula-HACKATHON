@@ -1,326 +1,267 @@
+// KARAR: Sticky input alt bar; auto-scroll smooth; ilk açılışta karşılama + chip sorular.
 import React, { useState, useEffect, useRef } from 'react'
 import { chat } from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
-// Mesaj balonunun zamanini formatlama
-const zamanDuzenle = (tarih) => {
-  return tarih.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-}
-
-// Oneri mesajlari
-const ONERI_MESAJLAR = [
-  'Bu ay nerede fazla harcadim?',
-  'Borclarimdan nasil kurtulabilirim?',
-  'Finansal skorumu nasil arttirabilirim?',
-  'Enflasyona karsi ne yapmaliyim?',
-  'Aboneliklerim ne kadar tutuyor?',
+const ORNEK_SORULAR = [
+  'Bu ay neye en çok harcadım?',
+  'Borçtan en hızlı nasıl çıkarım?',
+  'Aboneliklerimi kessem ne olur?',
 ]
 
+const KARSILAMA = 'Merhaba! Ben ParaPusula finansal asistanın. Banka ekstrene ve finansal durumuna bakarak sana özel cevap verebiliyorum. Aşağıdan örnek soruları seçebilir veya kendi sorunu yazabilirsin.'
+
 export default function ChatAssistant() {
-  const userId = localStorage.getItem('parapusula_user_id') || ''
-  const mesajSonuRef = useRef(null)
+  const { kullanici } = useAuth()
+  const userId = kullanici?.uid || localStorage.getItem('parapusula_user_id') || ''
+
+  const sonRef = useRef(null)
+  const taRef = useRef(null)
 
   const [mesajlar, setMesajlar] = useState([
-    {
-      id: 1,
-      kimden: 'asistan',
-      metin: 'Merhaba! Ben ParaPusula finansal asistaniyim. Banka ekstrene ve finansal durumuna bakabiliyorum. Ne ogrennek istersin?',
-      zaman: new Date(),
-    },
+    { id: 1, kimden: 'asistan', metin: KARSILAMA, zaman: new Date() },
   ])
-  const [girisMetni, setGirisMetni] = useState('')
+  const [giris, setGiris] = useState('')
   const [yukleniyor, setYukleniyor] = useState(false)
 
-  // Yeni mesaj geldiginde en alta kaydır
   useEffect(() => {
-    mesajSonuRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [mesajlar])
+    sonRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [mesajlar, yukleniyor])
 
-  // Mesaj gonder
-  const mesajGonder = async (metin) => {
-    const gonderilecekMetin = metin || girisMetni.trim()
-    if (!gonderilecekMetin || yukleniyor) return
+  // Textarea autosize
+  useEffect(() => {
+    if (!taRef.current) return
+    taRef.current.style.height = 'auto'
+    taRef.current.style.height = Math.min(taRef.current.scrollHeight, 140) + 'px'
+  }, [giris])
 
-    const yeniKullaniciMesaji = {
-      id: Date.now(),
-      kimden: 'kullanici',
-      metin: gonderilecekMetin,
-      zaman: new Date(),
-    }
+  async function gonder(metin) {
+    const txt = (metin ?? giris).trim()
+    if (!txt || yukleniyor) return
 
-    setMesajlar(prev => [...prev, yeniKullaniciMesaji])
-    setGirisMetni('')
+    const yeni = { id: Date.now(), kimden: 'kullanici', metin: txt, zaman: new Date() }
+    setMesajlar(prev => [...prev, yeni])
+    setGiris('')
     setYukleniyor(true)
 
     try {
-      const yanit = await chat(userId, gonderilecekMetin)
-
-      const asistanMesaji = {
-        id: Date.now() + 1,
-        kimden: 'asistan',
-        metin: yanit.yanit || 'Yanit alinamadi.',
+      const yanit = await chat(userId, txt)
+      setMesajlar(prev => [...prev, {
+        id: Date.now() + 1, kimden: 'asistan',
+        metin: yanit.yanit || 'Yanıt alınamadı.',
         zaman: new Date(),
-      }
-
-      setMesajlar(prev => [...prev, asistanMesaji])
+      }])
     } catch (err) {
-      const hataMesaji = {
-        id: Date.now() + 1,
-        kimden: 'asistan',
-        metin: `Uzgunum, su an yanit veremiyorum. Hata: ${err.message}`,
-        zaman: new Date(),
-        hata: true,
-      }
-      setMesajlar(prev => [...prev, hataMesaji])
+      setMesajlar(prev => [...prev, {
+        id: Date.now() + 1, kimden: 'asistan',
+        metin: `Üzgünüm, şu an yanıt veremiyorum. (${err.message})`,
+        zaman: new Date(), hata: true,
+      }])
     } finally {
       setYukleniyor(false)
     }
   }
 
-  // Enter ile gonder
-  const klavyeBasildi = (e) => {
+  function tusBasildi(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      mesajGonder()
+      gonder()
     }
   }
 
-  // Stiller
-  const sayfaStyle = {
-    minHeight: 'calc(100vh - 56px)',
-    backgroundColor: '#f0f4f8',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '24px',
-  }
-
-  const konteynerStyle = {
-    maxWidth: '760px',
-    margin: '0 auto',
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    flex: 1,
-  }
-
-  const sohbetAlaniStyle = {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: '16px 16px 0 0',
-    padding: '24px',
-    overflowY: 'auto',
-    maxHeight: 'calc(100vh - 280px)',
-    minHeight: '400px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-  }
-
-  const girisBolumStyle = {
-    backgroundColor: '#fff',
-    borderRadius: '0 0 16px 16px',
-    padding: '16px 24px',
-    borderTop: '1px solid #e2e8f0',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-  }
-
-  const mesajStyle = (kimden, hata) => ({
-    display: 'flex',
-    flexDirection: kimden === 'kullanici' ? 'row-reverse' : 'row',
-    marginBottom: '20px',
-    alignItems: 'flex-end',
-    gap: '10px',
-  })
-
-  const balonStyle = (kimden, hata) => ({
-    maxWidth: '75%',
-    padding: '14px 18px',
-    borderRadius: kimden === 'kullanici'
-      ? '18px 18px 4px 18px'
-      : '18px 18px 18px 4px',
-    backgroundColor: hata
-      ? '#fff5f5'
-      : kimden === 'kullanici'
-      ? '#2b6cb0'
-      : '#f7fafc',
-    color: hata
-      ? '#c53030'
-      : kimden === 'kullanici'
-      ? '#fff'
-      : '#1a202c',
-    fontSize: '15px',
-    lineHeight: 1.6,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-    border: hata ? '1px solid #fed7d7' : 'none',
-  })
-
-  const avatarStyle = (kimden) => ({
-    width: '36px',
-    height: '36px',
-    borderRadius: '50%',
-    backgroundColor: kimden === 'kullanici' ? '#2b6cb0' : '#e2e8f0',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '14px',
-    fontWeight: '700',
-    color: kimden === 'kullanici' ? '#fff' : '#4a5568',
-    flexShrink: 0,
-  })
+  // Sadece tek karşılama mesajı varsa örnek soruları göster
+  const ilkAcilis = mesajlar.length === 1
 
   return (
-    <div style={sayfaStyle}>
-      <div style={konteynerStyle}>
-        {/* Baslik */}
-        <div style={{ marginBottom: '16px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1a202c', marginBottom: '4px' }}>
-            Finansal Asistan
-          </h1>
-          <p style={{ color: '#718096', fontSize: '14px' }}>
-            Finansal durumun hakkinda her seyi sorabilirsin.
-          </p>
-        </div>
-
-        {/* Sohbet alani */}
-        <div style={sohbetAlaniStyle}>
-          {mesajlar.map((mesaj) => (
-            <div key={mesaj.id} style={mesajStyle(mesaj.kimden, mesaj.hata)}>
-              <div style={avatarStyle(mesaj.kimden)}>
-                {mesaj.kimden === 'kullanici' ? 'S' : 'P'}
-              </div>
-              <div>
-                <div style={balonStyle(mesaj.kimden, mesaj.hata)}>
-                  {/* Satir sonlarini koru */}
-                  {mesaj.metin.split('\n').map((satir, i) => (
-                    <React.Fragment key={i}>
-                      {satir}
-                      {i < mesaj.metin.split('\n').length - 1 && <br />}
-                    </React.Fragment>
-                  ))}
-                </div>
-                <p style={{
-                  fontSize: '11px', color: '#a0aec0', marginTop: '4px',
-                  textAlign: mesaj.kimden === 'kullanici' ? 'right' : 'left'
-                }}>
-                  {zamanDuzenle(mesaj.zaman)}
-                </p>
-              </div>
-            </div>
-          ))}
-
-          {/* Yaziliyor gostergesi */}
-          {yukleniyor && (
-            <div style={mesajStyle('asistan', false)}>
-              <div style={avatarStyle('asistan')}>P</div>
-              <div style={{ ...balonStyle('asistan', false), padding: '16px 20px' }}>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  {[0, 1, 2].map(i => (
-                    <div
-                      key={i}
-                      style={{
-                        width: '8px', height: '8px', borderRadius: '50%',
-                        backgroundColor: '#a0aec0',
-                        animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={mesajSonuRef} />
-        </div>
-
-        {/* Oneri butonlari */}
-        <div style={{
-          backgroundColor: '#f7fafc',
-          borderTop: '1px solid #e2e8f0',
-          padding: '12px 24px',
-          display: 'flex',
-          gap: '8px',
-          overflowX: 'auto',
-        }}>
-          {ONERI_MESAJLAR.map((oneri, i) => (
-            <button
-              key={i}
-              onClick={() => mesajGonder(oneri)}
-              disabled={yukleniyor}
-              style={{
-                padding: '6px 14px',
-                backgroundColor: '#fff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '20px',
-                fontSize: '13px',
-                color: '#4a5568',
-                cursor: yukleniyor ? 'not-allowed' : 'pointer',
-                whiteSpace: 'nowrap',
-                fontFamily: 'inherit',
-                flexShrink: 0,
-              }}
-            >
-              {oneri}
-            </button>
-          ))}
-        </div>
-
-        {/* Giris alani */}
-        <div style={girisBolumStyle}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-            <textarea
-              value={girisMetni}
-              onChange={(e) => setGirisMetni(e.target.value)}
-              onKeyDown={klavyeBasildi}
-              placeholder="Finansal durumun hakkinda bir soru sor... (Enter ile gonder)"
-              disabled={yukleniyor}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '12px',
-                fontSize: '15px',
-                resize: 'none',
-                minHeight: '52px',
-                maxHeight: '120px',
-                fontFamily: 'inherit',
-                color: '#1a202c',
-                outline: 'none',
-                transition: 'border-color 0.15s',
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#2b6cb0'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-              rows={1}
-            />
-            <button
-              onClick={() => mesajGonder()}
-              disabled={!girisMetni.trim() || yukleniyor}
-              style={{
-                padding: '14px 24px',
-                backgroundColor: girisMetni.trim() && !yukleniyor ? '#2b6cb0' : '#a0aec0',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '15px',
-                fontWeight: '600',
-                cursor: girisMetni.trim() && !yukleniyor ? 'pointer' : 'not-allowed',
-                fontFamily: 'inherit',
-                transition: 'background-color 0.15s',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              Gonder
-            </button>
-          </div>
-          <p style={{ fontSize: '11px', color: '#a0aec0', marginTop: '8px', textAlign: 'center' }}>
-            ParaPusula AI finansal danismanlik saglar, yatirim tavsiyesi vermez.
+    <div style={{
+      minHeight: 'calc(100vh - 64px)',
+      background: 'var(--bg-page)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Sticky header */}
+      <div className="glass" style={{
+        position: 'sticky', top: 64, zIndex: 50,
+        padding: '16px 24px',
+        borderBottom: '1px solid var(--border-subtle)',
+      }}>
+        <div style={{ maxWidth: 820, margin: '0 auto' }}>
+          <h1 className="heading-sm" style={{ marginBottom: 2 }}>Finansal Asistan</h1>
+          <p className="text-small" style={{ margin: 0 }}>
+            Verilerine bakarak sana özel cevap veriyor
           </p>
         </div>
       </div>
 
-      {/* Pulse animasyon icin inline style */}
+      {/* Mesaj alanı */}
+      <div style={{
+        flex: 1,
+        padding: '24px 16px 180px',
+        overflowY: 'auto',
+      }}>
+        <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {mesajlar.map(m => (
+            <Balon key={m.id} mesaj={m} />
+          ))}
+
+          {/* Typing indicator */}
+          {yukleniyor && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+              <Avatar tip="asistan" />
+              <div style={{
+                background: 'var(--bg-surface)',
+                borderRadius: '18px 18px 18px 4px',
+                padding: '14px 18px',
+                boxShadow: 'var(--shadow-sm)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex', gap: 6,
+              }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: 'var(--text-tertiary)',
+                    animation: `typingDot 1.2s ease-in-out ${i * 0.2}s infinite`,
+                  }} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Örnek sorular (sadece ilk açılışta) */}
+          {ilkAcilis && !yukleniyor && (
+            <div className="animate-fade-in" style={{ marginTop: 8, marginLeft: 46 }}>
+              <p className="text-tiny" style={{ marginBottom: 10 }}>Örnek sorular</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {ORNEK_SORULAR.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => gonder(s)}
+                    className="btn btn-secondary"
+                    style={{ fontSize: 13, padding: '10px 16px' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div ref={sonRef} />
+        </div>
+      </div>
+
+      {/* Sabit input bar */}
+      <div className="glass" style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        padding: '16px 16px calc(16px + env(safe-area-inset-bottom))',
+        borderTop: '1px solid var(--border-subtle)',
+        zIndex: 50,
+      }}>
+        <div style={{
+          maxWidth: 820, margin: '0 auto',
+          display: 'flex', gap: 12, alignItems: 'flex-end',
+        }}>
+          <textarea
+            ref={taRef}
+            value={giris}
+            onChange={(e) => setGiris(e.target.value)}
+            onKeyDown={tusBasildi}
+            placeholder="Finansal durumun hakkında bir soru sor..."
+            disabled={yukleniyor}
+            rows={1}
+            className="input"
+            style={{
+              resize: 'none', minHeight: 48, maxHeight: 140,
+              padding: '14px 16px', borderRadius: 'var(--radius-lg)',
+            }}
+          />
+          <button
+            onClick={() => gonder()}
+            disabled={!giris.trim() || yukleniyor}
+            className="btn btn-primary"
+            style={{
+              width: 48, height: 48, padding: 0, borderRadius: 'var(--radius-lg)',
+              flexShrink: 0,
+            }}
+            aria-label="Gönder"
+          >
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 2L11 13" />
+              <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-tiny" style={{ textAlign: 'center', marginTop: 8, marginBottom: 0, textTransform: 'none', letterSpacing: 0 }}>
+          ParaPusula AI eğitim amaçlıdır, yatırım tavsiyesi vermez.
+        </p>
+      </div>
+
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.2); }
+        @keyframes typingDot {
+          0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+          30% { opacity: 1; transform: translateY(-4px); }
         }
       `}</style>
+    </div>
+  )
+}
+
+function Avatar({ tip }) {
+  if (tip === 'asistan') {
+    return (
+      <div style={{
+        width: 36, height: 36, borderRadius: '50%',
+        background: 'var(--color-primary)', color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        <svg width={18} height={18} viewBox="0 0 32 32">
+          <path d="M16 6 L19 16 L16 26 L13 16 Z" fill="#F59E0B" />
+          <circle cx="16" cy="16" r="2" fill="#fff" />
+        </svg>
+      </div>
+    )
+  }
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: '50%',
+      background: 'var(--color-primary-soft)', color: 'var(--color-primary)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 13, fontWeight: 700, flexShrink: 0,
+    }}>S</div>
+  )
+}
+
+function Balon({ mesaj }) {
+  const ben = mesaj.kimden === 'kullanici'
+  return (
+    <div className="animate-fade-in" style={{
+      display: 'flex', flexDirection: ben ? 'row-reverse' : 'row',
+      alignItems: 'flex-end', gap: 10,
+    }}>
+      <Avatar tip={mesaj.kimden} />
+      <div style={{ maxWidth: '75%', minWidth: 0 }}>
+        <div style={{
+          padding: '12px 16px',
+          borderRadius: ben ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+          background: mesaj.hata
+            ? 'rgba(239,68,68,0.06)'
+            : ben ? 'var(--color-primary)' : 'var(--bg-surface)',
+          color: mesaj.hata ? '#B91C1C' : ben ? '#fff' : 'var(--text-primary)',
+          fontSize: 14, lineHeight: 1.55,
+          boxShadow: ben ? 'none' : 'var(--shadow-sm)',
+          border: ben ? 'none' : (mesaj.hata ? '1px solid rgba(239,68,68,0.2)' : '1px solid var(--border-subtle)'),
+          whiteSpace: 'pre-wrap',
+          wordWrap: 'break-word',
+        }}>
+          {mesaj.metin}
+        </div>
+        <p className="text-tiny" style={{
+          margin: '4px 4px 0', textAlign: ben ? 'right' : 'left',
+          textTransform: 'none', letterSpacing: 0,
+        }}>
+          {mesaj.zaman.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
     </div>
   )
 }
