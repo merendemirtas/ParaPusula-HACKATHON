@@ -53,9 +53,9 @@ function HerkesAcikRota({ children }) {
 }
 
 // ─── Nav linkler — tek kaynak ──────────────────────────────────
+// KARAR: PDF Yükle navdan kaldırıldı; Dashboard'da Upload Card ile erişiliyor.
 const NAV_LINKS = [
-  { yol: '/dashboard', etiket: 'Pano',         ikon: IconPano },
-  { yol: '/upload',    etiket: 'PDF Yükle',    ikon: IconUpload },
+  { yol: '/dashboard', etiket: 'Dashboard',    ikon: IconPano },
   { yol: '/debt',      etiket: 'Borç Haritası', ikon: IconDebt },
   { yol: '/expenses',  etiket: 'Harcamalar',   ikon: IconExpense },
   { yol: '/chat',      etiket: 'Asistan',      ikon: IconChat },

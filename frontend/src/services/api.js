@@ -150,6 +150,38 @@ export async function recalculate(userId) {
   return yanit.data
 }
 
+/**
+ * Bu ay ve geçen ay arasındaki finansal farkları döndürür.
+ * @param {string} userId
+ * @returns {Promise<Object>} - {bu_ay, onceki_ay, delta}
+ */
+export async function getComparison(userId) {
+  const yanit = await api.get(`/comparison/${userId}`)
+  return yanit.data
+}
+
+/**
+ * Kullanıcının abonelik puanlarını döndürür.
+ * @param {string} userId
+ * @returns {Promise<Object>} - {puanlar: {adi: {puan, tutar}}}
+ */
+export async function getSubscriptionRatings(userId) {
+  const yanit = await api.get(`/subscriptions/${userId}`)
+  return yanit.data
+}
+
+/**
+ * Abonelik kullanım puanını kaydeder.
+ * @param {string} userId
+ * @param {string} adi - Abonelik adı
+ * @param {number} puan - 1-5 arası puan
+ * @param {number} tutar - Aylık ücret
+ */
+export async function saveSubscriptionRating(userId, adi, puan, tutar) {
+  const yanit = await api.post(`/subscriptions/${userId}`, { adi, puan, tutar })
+  return yanit.data
+}
+
 export async function refreshTCMB() {
   const yanit = await api.get('/tcmb/refresh')
   return yanit.data

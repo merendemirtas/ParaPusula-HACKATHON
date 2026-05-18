@@ -299,7 +299,11 @@ Görevler:
 1. Her işleme uygun bir Türkçe kategori ata (örn: "Market Alışverişi", "Faturalar", "Yemek & Restoran",
    "Ulaşım", "Eğlence", "Sağlık", "Eğitim", "Giyim", "Kredi/Borç Ödemesi", "Maaş Geliri",
    "Abonelikler", "Diğer Giderler", "Diğer Gelirler")
-2. Abonelik olan harcamaları tespit et (Netflix, Spotify, internet, telefon faturası gibi düzenli ödemeler)
+2. Abonelik olan harcamaları kesinlikle tespit et ve abonelik_mi=true yap.
+   Şu servisler KESİNLİKLE abonelik: Netflix, Spotify, YouTube Premium, Amazon Prime, Disney+,
+   Exxen, BluTV, Gain, MUBI, Apple TV+, Deezer, Tidal, ChatGPT Plus, Copilot, Canva, Adobe,
+   Dropbox, iCloud, Google One, PlayStation Plus, Xbox Game Pass, internet faturası, telefon faturası.
+   Bu servisler "Abonelikler" kategorisine girer.
 3. Her kategori için toplam tutarı ve işlem sayısını hesapla
 
 Aşağıdaki JSON formatında yanıt ver:
@@ -510,17 +514,53 @@ Toplam borç: {toplam_borc:,.0f} TL
 {"Önerilen yöntem: " + borc_yontemi if borclu else ""}
 
 TALİMATLAR:
-- Tam olarak 3 öneri üret
+- Tam olarak 3 öneri üret (Yüksek, Orta, Düşük öncelikli birer tane)
 - Gerçek rakamları kullan (TL miktarlarını belirt)
-- Empatik, motive edici Türkçe dil
+- Empatik, Türkçe dil — "Sevgili danışanım" gibi nezaket kalıpları KULLANMA
+- Her öneri için max 4 madde — somut, uygulanabilir adımlar
+- Maddelerde * işareti değil • veya düz cümle kullan
 - Enflasyon (%{tcmb.get('tufe', 65) if tcmb else 65}) bağlamında düşün
 
 Aşağıdaki JSON formatında yanıt ver (sadece JSON, başka hiçbir şey yazma):
 {{
   "oneriler": [
-    {{"baslik": "Başlık 1", "aciklama": "Açıklama 1...", "oncelik": 1}},
-    {{"baslik": "Başlık 2", "aciklama": "Açıklama 2...", "oncelik": 2}},
-    {{"baslik": "Başlık 3", "aciklama": "Açıklama 3...", "oncelik": 3}}
+    {{
+      "id": "oneri_1",
+      "ana_fikir": "Online alışverişini yarıya indir",
+      "oncelik": "Yüksek",
+      "kazanim": "Aylık 3.290 TL tasarruf",
+      "kazanim_tutari": 3290,
+      "maddeler": [
+        "Bu ay online alışverişe 6.580 TL harcadın, geçen aya göre %40 fazla.",
+        "Sadece ihtiyaç listenizdeki ürünleri al, anlık kararlardan kaçın.",
+        "Alışveriş sepetini 24 saat beklet, gerçekten lazım mı diye sor.",
+        "Bu tasarrufla 2 ay içinde bir taksitini kapatabilirsin."
+      ]
+    }},
+    {{
+      "id": "oneri_2",
+      "ana_fikir": "Kullanılmayan abonelikleri iptal et",
+      "oncelik": "Orta",
+      "kazanim": "Aylık 450 TL tasarruf",
+      "kazanim_tutari": 450,
+      "maddeler": [
+        "Aboneliklerine bu ay toplam 450 TL harcadın.",
+        "Ayda 1-2 kez kullandığın platformları askıya al.",
+        "Yılda 5.400 TL tasarruf eder, bu bir taksit ödemesine eşit."
+      ]
+    }},
+    {{
+      "id": "oneri_3",
+      "ana_fikir": "Acil fon oluştur",
+      "oncelik": "Düşük",
+      "kazanim": "3 aylık güvence",
+      "kazanim_tutari": 0,
+      "maddeler": [
+        "Şu an 0 TL acil fonun var.",
+        "Her ay 500 TL ayırırsan 6 ayda temel güvenceye ulaşırsın.",
+        "Bu fon, beklenmedik gider geldiğinde kredi kartına sarılmayı önler."
+      ]
+    }}
   ],
   "borc_cikis_plani": {{"yontem": "avalanche", "toplam_borc": {toplam_borc:.0f}, "aylik_ekstra_odeme": 1000, "tahmini_bitis_ay": "2027-06", "adimlar": []}}
 }}

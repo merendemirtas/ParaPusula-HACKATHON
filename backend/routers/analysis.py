@@ -198,3 +198,119 @@ async def yeniden_hesapla(user_id: str):
         import traceback
         print(f"[RECALCULATE] KRİTİK HATA:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Yeniden hesaplama hatası: {e}")
+
+
+@router.get("/comparison/{user_id}")
+async def aylik_karsilastirma_getir(user_id: str):
+    """
+    Bu ay ve geçen ayın snapshot'larını karşılaştırır.
+    Delta hesaplamaları döndürür: skor, gider, kategori değişimleri, borç.
+    Geçen ay yoksa 404 yerine {"onceki_ay": null} döner.
+    """
+    try:
+        snapshots = await firebase_service.snapshot_listesi_oku(user_id, limit=2)
+
+        if not snapshots:
+            raise HTTPException(status_code=404, detail="Karşılaştırma için veri bulunamadı.")
+
+        bu_ay = snapshots[0]
+        onceki_ay = snapshots[1] if len(snapshots) > 1 else None
+
+        if not onceki_ay:
+            return {"bu_ay": bu_ay.get("ay"), "onceki_ay": None, "delta": None}
+
+        # ── Skor değişimi ─────────────────────────────────────
+        skor_bu    = float(bu_ay.get("finansal_skor", 0))
+        skor_once  = float(onceki_ay.get("finansal_skor", 0))
+        skor_delta = skor_bu - skor_once
+
+        # ── Gider değişimi ────────────────────────────────────
+        gider_bu   = float(bu_ay.get("toplam_gider", 0))
+        gider_once = float(onceki_ay.get("toplam_gider", 0))
+        gider_pct  = ((gider_bu - gider_once) / gider_once * 100) if gider_once > 0 else 0
+
+        # ── Kategori değişimleri ──────────────────────────────
+        def kat_map(snapshot):
+            return {
+                k.get("kategori_adi", ""): abs(float(k.get("toplam_tutar", 0)))
+                for k in snapshot.get("kategoriler", [])
+                if k.get("toplam_tutar", 0) < 0 and abs(float(k.get("toplam_tutar", 0))) > 50
+            }
+
+        kat_bu    = kat_map(bu_ay)
+        kat_once  = kat_map(onceki_ay)
+
+        degisimler = []
+        for adi, tutar_bu in kat_bu.items():
+            if adi in kat_once and kat_once[adi] > 0:
+                pct = (tutar_bu - kat_once[adi]) / kat_once[adi] * 100
+                if abs(pct) >= 5:
+                    degisimler.append({"kategori": adi, "pct": round(pct, 1),
+                                       "bu_ay": tutar_bu, "onceki_ay": kat_once[adi]})
+
+        degisimler.sort(key=lambda x: x["pct"])
+        en_az_artan  = degisimler[-1] if degisimler else None  # en yüksek artış (kötü)
+        en_cok_azalan = degisimler[0] if degisimler else None  # en yüksek düşüş (iyi)
+
+        # ── Borç değişimi ─────────────────────────────────────
+        borc_bu   = sum(float(b.get("ana_para", 0)) for b in bu_ay.get("borc_listesi", []))
+        borc_once = sum(float(b.get("ana_para", 0)) for b in onceki_ay.get("borc_listesi", []))
+        borc_odenen = borc_once - borc_bu if borc_once > borc_bu else 0
+        borc_pct    = ((borc_once - borc_bu) / borc_once * 100) if borc_once > 0 else 0
+
+        return {
+            "bu_ay":    bu_ay.get("ay"),
+            "onceki_ay": onceki_ay.get("ay"),
+            "delta": {
+                "skor_bu":    round(skor_bu),
+                "skor_once":  round(skor_once),
+                "skor_delta": round(skor_delta, 1),
+                "gider_bu":   round(gider_bu, 2),
+                "gider_once": round(gider_once, 2),
+                "gider_pct":  round(gider_pct, 1),
+                "en_cok_artan":  en_az_artan,
+                "en_cok_azalan": en_cok_azalan,
+                "kat_degisimleri": degisimler,
+                "borc_bu":     round(borc_bu, 2),
+                "borc_once":   round(borc_once, 2),
+                "borc_odenen": round(borc_odenen, 2),
+                "borc_pct":    round(borc_pct, 1),
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Karşılaştırma hatası: {e}")
+
+
+@router.get("/subscriptions/{user_id}")
+async def abonelik_puanlari_getir(user_id: str):
+    """Kullanıcının abonelik puanlarını döndürür."""
+    try:
+        puanlar = await firebase_service.abonelik_puanlari_oku(user_id)
+        return {"user_id": user_id, "puanlar": puanlar}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Abonelik puanları getirme hatası: {e}")
+
+
+@router.post("/subscriptions/{user_id}")
+async def abonelik_puani_kaydet(user_id: str, data: dict):
+    """
+    Abonelik kullanım puanını kaydeder.
+    Body: {"adi": "Netflix", "puan": 3, "tutar": 219.0}
+    """
+    try:
+        adi   = str(data.get("adi", ""))
+        puan  = int(data.get("puan", 0))
+        tutar = float(data.get("tutar", 0))
+
+        if not adi or not (1 <= puan <= 5):
+            raise HTTPException(status_code=400, detail="Geçersiz abonelik adı veya puan (1-5).")
+
+        await firebase_service.abonelik_puani_kaydet(user_id, adi, puan, tutar)
+        return {"basarili": True, "adi": adi, "puan": puan}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Puan kaydetme hatası: {e}")

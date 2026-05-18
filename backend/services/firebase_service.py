@@ -207,6 +207,65 @@ class FirebaseService:
             print(f"[FIREBASE] HATA analiz_guncelle: {e}")
             raise RuntimeError(f"Analiz güncelleme hatası: {e}")
 
+    async def snapshot_listesi_oku(self, user_id: str, limit: int = 2) -> list:
+        """
+        Kullanıcının en son N snapshot'ını ham dict olarak listeler (tarihe göre azalan).
+        Aylık kıyaslama için kullanılır.
+        """
+        try:
+            def _oku():
+                docs = self.db.collection("users").document(user_id)\
+                    .collection("snapshots")\
+                    .order_by("olusturulma_tarihi", direction=firestore.Query.DESCENDING)\
+                    .limit(limit)\
+                    .stream()
+                return [doc.to_dict() for doc in docs if doc.exists]
+
+            return await asyncio.to_thread(_oku)
+        except Exception as e:
+            raise RuntimeError(f"Snapshot listesi okuma hatası: {e}")
+
+    async def abonelik_puani_kaydet(
+        self, user_id: str, adi: str, puan: int, tutar: float
+    ) -> None:
+        """
+        Abonelik kullanım puanını Firestore'a kaydeder.
+        Yol: users/{userId}/subscriptions/{adi_normalize}
+        """
+        try:
+            # Abonelik adını Firestore-safe doc id'ye çevir
+            doc_id = adi.lower().replace(" ", "_").replace("/", "_")[:64]
+            veri = {
+                "adi": adi,
+                "puan": puan,
+                "tutar": tutar,
+                "guncelleme_tarihi": datetime.now().isoformat()
+            }
+
+            def _kaydet():
+                self.db.collection("users").document(user_id)\
+                    .collection("subscriptions").document(doc_id)\
+                    .set(veri, merge=True)
+
+            await asyncio.to_thread(_kaydet)
+        except Exception as e:
+            raise RuntimeError(f"Abonelik puanı kaydetme hatası: {e}")
+
+    async def abonelik_puanlari_oku(self, user_id: str) -> dict:
+        """
+        Kullanıcının tüm abonelik puanlarını okur.
+        Dönüş: {adi: {puan, tutar}}
+        """
+        try:
+            def _oku():
+                docs = self.db.collection("users").document(user_id)\
+                    .collection("subscriptions").stream()
+                return {doc.id: doc.to_dict() for doc in docs}
+
+            return await asyncio.to_thread(_oku)
+        except Exception as e:
+            raise RuntimeError(f"Abonelik puanları okuma hatası: {e}")
+
     async def snapshot_ham_oku(self, user_id: str, ay: str) -> Optional[dict]:
         """
         Belirtilen aydaki snapshot'ı ham dict olarak döndürür (Pydantic'e geçirmeden).

@@ -12,11 +12,16 @@ const paraDuzenle = (sayi) => {
 }
 
 const SINIF = {
-  stratejik: { renk: 'var(--color-positive)', etiket: 'Stratejik', aciklama: 'Değer yaratan borç',
+  stratejik:     { renk: 'var(--color-positive)', etiket: 'Stratejik',     aciklama: 'Değer yaratan borç — eviniz borçtan hızlı değerleniyor',
     badgeCls: 'badge-positive', barRenk: '#10B981' },
-  gri:       { renk: 'var(--color-warning)',  etiket: 'Gri Alan', aciklama: 'Orta vadeli, izlenmeli',
+  yonetilebilir: { renk: 'var(--color-warning)',  etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
     badgeCls: 'badge-warning',  barRenk: '#F59E0B' },
-  kotu:      { renk: 'var(--color-negative)', etiket: 'Riskli', aciklama: 'Yüksek faizli, öncelikli öde',
+  kritik:        { renk: 'var(--color-negative)', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
+    badgeCls: 'badge-negative', barRenk: '#EF4444' },
+  // Geriye uyumluluk: eski Firestore değerleri
+  gri:  { renk: 'var(--color-warning)',  etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
+    badgeCls: 'badge-warning',  barRenk: '#F59E0B' },
+  kotu: { renk: 'var(--color-negative)', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
     badgeCls: 'badge-negative', barRenk: '#EF4444' },
 }
 

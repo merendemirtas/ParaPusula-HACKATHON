@@ -68,8 +68,8 @@ def finansal_skor_hesapla(
         elif abonelik_oran < 0.10:
             skor += 7
 
-    # ── 20 puan: Kötü borç yok mu? ───────────────────────────
-    kotu_borc_sayisi = sum(1 for b in borc_listesi if b.get("siniflandirma") == "kotu")
+    # ── 20 puan: Kritik borç yok mu? ─────────────────────────
+    kotu_borc_sayisi = sum(1 for b in borc_listesi if b.get("siniflandirma") in ("kritik", "kotu"))
     if kotu_borc_sayisi == 0:
         skor += 20
     elif kotu_borc_sayisi == 1:
@@ -113,39 +113,39 @@ def borc_siniflandir(
         "konut kr", "konut krd", "housing loan"
     ]
     if any(k in aciklama_kucuk for k in konut_anahtar):
-        # Aylık ödeme < 15.000 TL ise görece düşük faizli → stratejik
+        # Konut kredisi faiz < KFE ise değer yaratan borç → stratejik
         if aylik_odeme < 15000:
             return {"siniflandirma": "stratejik", "faiz_orani": 2.5}
         else:
-            return {"siniflandirma": "gri", "faiz_orani": 3.5}
+            return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.5}
 
-    # Kredi kartı / nakit avans / tüketici — kötü borç
-    kotu_anahtar = [
+    # Kredi kartı / nakit avans / yüksek faizli tüketici — kritik borç
+    kritik_anahtar = [
         "kredi karti", "kredi kartı", "credit card", "nakit avans",
         "tuketici", "tüketici", "kk borç", "kk borc",
         "kart borç", "kart borc", "limit", "avans"
     ]
-    if any(k in aciklama_kucuk for k in kotu_anahtar):
-        return {"siniflandirma": "kotu", "faiz_orani": azami_faiz}
+    if any(k in aciklama_kucuk for k in kritik_anahtar):
+        return {"siniflandirma": "kritik", "faiz_orani": azami_faiz}
 
-    # Taşıt / araç kredisi — gri bölge
+    # Taşıt / araç kredisi — yönetilebilir borç
     tasit_anahtar = [
         "tasit", "taşıt", "arac", "araç", "otomobil", "vehicle", "auto"
     ]
     if any(k in aciklama_kucuk for k in tasit_anahtar):
-        return {"siniflandirma": "gri", "faiz_orani": 3.8}
+        return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.8}
 
-    # İhtiyaç kredisi — gri/kötü sınırı; aylık ödeme yüksekse kötü
+    # İhtiyaç kredisi — yüksek ödemeyse kritik, değilse yönetilebilir
     ihtiyac_anahtar = [
         "ihtiyac", "ihtiyaç", "bireysel", "personal", "taksit"
     ]
     if any(k in aciklama_kucuk for k in ihtiyac_anahtar):
         if aylik_odeme > 5000:
-            return {"siniflandirma": "kotu", "faiz_orani": azami_faiz}
-        return {"siniflandirma": "gri", "faiz_orani": 3.5}
+            return {"siniflandirma": "kritik", "faiz_orani": azami_faiz}
+        return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.5}
 
-    # Varsayılan: gri bölge
-    return {"siniflandirma": "gri", "faiz_orani": 3.0}
+    # Varsayılan: yönetilebilir borç
+    return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.0}
 
 
 def borc_cikis_plani_hesapla(
@@ -383,7 +383,7 @@ async def analiz_agent_node(state: PipelineState) -> PipelineState:
                     faiz_orani=float(borc.get("faiz_orani", 0)),
                     kalan_taksit=int(borc.get("kalan_taksit", 0)),
                     aylik_odeme=float(borc.get("aylik_odeme", 0)),
-                    siniflandirma=borc.get("siniflandirma", "gri")
+                    siniflandirma=borc.get("siniflandirma", "yonetilebilir")
                 ))
             except Exception:
                 pass
