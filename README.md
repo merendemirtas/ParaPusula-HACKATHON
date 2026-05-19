@@ -1,105 +1,347 @@
-# ParaPusula 🧭
+# 🧭 ParaPusula
 
-**AI destekli kişisel finansal asistan** — BTK Akademi Hackathon 2026
+> **Yapay Zeka Destekli Kişisel Finansal Özgürlük Asistanı**
+> BTK Akademi Hackathon 2026
 
-Banka ekstrenizi yükleyin, AI saniyeler içinde finansal haritanızı çıkarsın. Borç sınıflandırması, harcama analizi, avalanche borç ödeme planı ve kişisel öneri üretimi tek sistemde.
+[![Python](https://img.shields.io/badge/Python-3.11+-356B59?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-356B59?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18+-356B59?style=flat-square&logo=react&logoColor=white)](https://react.dev)
+[![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-356B59?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev)
+[![Firebase](https://img.shields.io/badge/Firebase-Firestore-356B59?style=flat-square&logo=firebase&logoColor=white)](https://firebase.google.com)
 
 ---
 
-## Kurulum
+## 📌 Ne Yapar?
+
+ParaPusula, Türkiye'de yaşayan bireylerin banka ekstrelerini yükleyerek finansal durumlarını anlık olarak görmelerini, borç tuzaklarını tespit etmelerini ve kişiselleştirilmiş çıkış planı oluşturmalarını sağlar.
+
+Banka API'si gerektirmez. PDF ekstresi yeterlidir.
+
+---
+
+## ✨ Öne Çıkan Özellikler
+
+| Özellik | Açıklama |
+|---|---|
+| 🤖 Multi-Agent Pipeline | LangGraph ile 6 ajan sırayla çalışır |
+| 📄 PDF Okuma | Gemini File API — Ziraat + Halkbank |
+| 📊 Finansal Sağlık Skoru | 5 parametreli deterministik algoritma |
+| 💳 Borç Sınıflandırması | Stratejik / Yönetilebilir / Kritik |
+| 🏦 TCMB Entegrasyonu | Canlı TÜFE, KFE, azami faiz verisi |
+| 🔮 Senaryo Simülatörü | "Arabamı satsam ne olur?" |
+| ⭐ Abonelik Puanlama | 1-5 yıldız, AI önerilerine yansır |
+| 🎯 Birikim Hedefi | Fotoğraflı hedef kartı + donut chart |
+| ✨ "Vay Be" Anı | İlk analizde çarpıcı özet ekranı |
+| 🌙 Dark / Light Mode | Tam tema desteği |
+
+---
+
+## 🛠️ Teknoloji Yığını
+
+### Backend
+```
+FastAPI (Python 3.11+)     — REST API
+LangGraph + LangChain      — Multi-agent pipeline
+Gemini 2.5 Flash           — AI motoru
+Gemini File API            — PDF okuma
+Firebase Firestore         — Veritabanı
+Firebase Auth              — Kimlik doğrulama
+TCMB EVDS API              — Ekonomik veri
+evds                       — TCMB Python kütüphanesi
+```
+
+### Frontend
+```
+React (Vite)               — SPA framework
+Framer Motion              — Animasyonlar
+Recharts                   — Grafikler
+Tailwind CSS               — Stil sistemi
+lucide-react               — İkonlar
+```
+
+---
+
+## 🚀 Kurulum
 
 ### Gereksinimler
 
 - Python 3.11+
 - Node.js 18+
-- Firebase projesi (Firestore + Authentication)
-- Google Gemini API anahtarı
+- Firebase projesi (Firestore + Auth aktif)
+- Gemini API key
+- TCMB EVDS API key
 
-### Backend
+### 1. Repoyu klonla
+
+```bash
+git clone https://github.com/kullanici/parapusula.git
+cd parapusula
+```
+
+### 2. Backend kurulumu
 
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-
-# .env dosyasını oluştur
-cp .env.example .env
-# Gerekli anahtarları .env dosyasına ekle
-
-python main.py
-# → http://localhost:8000
-# → Swagger UI: http://localhost:8000/docs
 ```
 
-### Frontend
+`.env` dosyası oluştur:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+TCMB_API_KEY=your_tcmb_api_key
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY_ID=your_key_id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@project.iam.gserviceaccount.com
+FIREBASE_CLIENT_ID=your_client_id
+CORS_ORIGINS=http://localhost:5173
+```
+
+Backend'i başlat:
+
+```bash
+uvicorn main:app --reload
+```
+
+API: `http://localhost:8000`
+Dokümantasyon: `http://localhost:8000/docs`
+
+### 3. Frontend kurulumu
 
 ```bash
 cd frontend
 npm install
-npm run dev
-# → http://localhost:5173
 ```
 
----
-
-## Teknoloji Yığını
-
-| Katman | Teknoloji |
-|--------|-----------|
-| Backend | FastAPI + Python 3.11 |
-| AI Pipeline | LangGraph + Gemini 2.5 Flash |
-| Veritabanı | Firebase Firestore |
-| Kimlik Doğrulama | Firebase Authentication |
-| Makroekonomik Veri | TCMB EVDS API |
-| Frontend | React 18 + Vite |
-| Grafikler | Recharts |
-| Stil | CSS Custom Properties (Design System) |
-
----
-
-## Özellikler
-
-- **PDF Okuma** — Ziraat ve Halkbank banka ekstreleri desteklenir
-- **AI Analiz** — 5 aşamalı LangGraph pipeline (PDF → Kategorizasyon → Veri zenginleştirme → Analiz → Öneri)
-- **Finansal Skor** — 0-100 arası sağlık skoru (Kritik / Dikkat / İyi / Mükemmel)
-- **Borç Haritası** — TCMB verisine göre stratejik/gri/riskli sınıflandırma
-- **Avalanche Planı** — Aylık detaylı borç ödeme tablosu
-- **Harcama Analizi** — Kategorili grafik + işlem detay modal
-- **Finansal Asistan** — Ekstrene özel soru-cevap (Gemini 2.5 Flash)
-- **Türkçe Arayüz** — Tamamen Türkçe, mobil uyumlu
-
----
-
-## Demo Akışı
-
-1. `http://localhost:5173` → Kayıt ol
-2. Onboarding'i tamamla (4 soru)
-3. PDF Yükle → `Ziraat_Ekstre_Ornek.pdf` seç
-4. Dashboard'da skor ve grafikleri incele
-5. Borç Haritası → Aylık ödeme tablosunu gör
-6. Harcamalar → Kategoriye tıkla, işlem detayı aç
-7. Asistan → "Bu ay neye en çok harcadım?" diye sor
-
----
-
-## Çevre Değişkenleri
+`.env` dosyası oluştur:
 
 ```env
-GEMINI_API_KEY=...
-FIREBASE_PROJECT_ID=...
-FIREBASE_PRIVATE_KEY=...
-FIREBASE_CLIENT_EMAIL=...
-CORS_ORIGINS=http://localhost:5173
+VITE_API_URL=http://localhost:8000
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+```
+
+Frontend'i başlat:
+
+```bash
+npm run dev
+```
+
+Uygulama: `http://localhost:5173`
+
+---
+
+## 📁 Proje Yapısı
+
+```
+parapusula/
+├── backend/
+│   ├── main.py                      # FastAPI uygulaması
+│   ├── config.py                    # Ortam değişkenleri
+│   ├── requirements.txt
+│   ├── agents/
+│   │   ├── pipeline.py              # LangGraph DAG
+│   │   ├── pdf_agent.py             # PDF okuma
+│   │   ├── categorization_agent.py  # Harcama kategorizasyonu
+│   │   ├── enrichment_agent.py      # TCMB veri zenginleştirme
+│   │   ├── analiz_agent.py          # Finansal analiz + skor
+│   │   └── recommendation_agent.py  # Öneri + borç planı
+│   ├── routers/
+│   │   ├── upload.py                # PDF yükleme + streaming
+│   │   ├── analysis.py              # Analiz endpoint'leri
+│   │   ├── chat.py                  # Sohbet asistanı
+│   │   ├── goals.py                 # Birikim hedefleri
+│   │   └── simulator.py             # Senaryo simülatörü
+│   ├── services/
+│   │   ├── gemini_service.py        # Gemini API wrapper
+│   │   ├── firebase_service.py      # Firestore CRUD
+│   │   └── tcmb_service.py          # TCMB EVDS + cache
+│   └── models/
+│       ├── schemas.py               # Pydantic modeller
+│       └── state.py                 # LangGraph state
+└── frontend/
+    └── src/
+        ├── pages/
+        │   ├── Dashboard.jsx        # Anasayfa
+        │   ├── Expenses.jsx         # Harcamalar
+        │   ├── DebtMap.jsx          # Borç Haritası
+        │   ├── Simulator.jsx        # Senaryo Simülatörü
+        │   ├── Assistant.jsx        # Sohbet Asistanı
+        │   ├── Insight.jsx          # "Vay Be" anı
+        │   ├── Upload.jsx           # PDF yükleme
+        │   └── Onboarding.jsx       # Kullanıcı profili
+        ├── components/
+        │   ├── Navbar.jsx
+        │   ├── ProgressPipeline.jsx
+        │   └── ...
+        ├── context/
+        │   └── ThemeContext.jsx      # Dark/Light mode
+        └── services/
+            └── api.js               # Backend API çağrıları
 ```
 
 ---
 
-## Hackathon Notları
+## 🔄 Agent Pipeline
 
-- TCMB EVDS entegrasyonu: gerçek API auth karmaşık olduğundan simüle fallback değerler kullanılır (TÜFE=65, KFE=34, azami_faiz=4.5) — Firestore'a cache'lenir
-- Gemini 429 hatası: exponential backoff (1s, 2s, 4s) + günlük kota kontrolü
-- Borç faiz hesabı: yıllık % / 12 / 100 = aylık decimal (Avalanche algoritması)
+```
+PDF Yüklenir
+     ↓
+PDF Agent          → İşlem listesi çıkarır (tarih, tutar, açıklama)
+     ↓
+Kategorizasyon     → 12 kategoriye ayırır, abonelikleri tespit eder
+     ↓
+Zenginleştirme     → TCMB: TÜFE %32.37, KFE %31.66, Azami Faiz %61.69
+     ↓
+Analiz             → Nakit akışı, borç haritası, finansal skor (0-100)
+     ↓
+Öneri              → 3 aksiyon, Avalanche borç planı
+     ↓
+Firestore          → Snapshot kaydedilir
+     ↓
+Frontend           → Dashboard + "Vay Be" anı
+```
+
+**Streaming:** Her agent tamamlandığında frontend'e anlık bildirim gönderilir.
 
 ---
 
-*2026 · Veriler uçtan uca şifreli işlenir*
+## 🏦 TCMB Veri Entegrasyonu
+
+```python
+# Canlı ekonomik veri — evds kütüphanesi
+from evds import evdsAPI
+
+evds = evdsAPI(api_key)
+
+# Çekilen seriler:
+# TP.FG.J0   → TÜFE (Yıllık % değişim)
+# TP.HKFE02  → KFE  (Konut Fiyat Endeksi)
+# TP.KTF10   → Azami tüketici kredisi faizi
+```
+
+**Cache-first:** Veriler günlük Firestore'a yazılır. API erişilemezse fallback değerler devreye girer.
+
+---
+
+## 💡 Borç Sınıflandırma Mantığı
+
+```python
+def siniflandir(borc_turu, faiz_yillik, tufe, kfe):
+    if borc_turu == "konut" and faiz_yillik < kfe:
+        return "STRATEJİK"    # Eviniz borçtan hızlı değerleniyor
+    elif faiz_yillik < tufe:
+        return "YÖNETİLEBİLİR"  # Enflasyon borcu eritiyor
+    else:
+        return "KRİTİK"      # Faiz enflasyonun üzerinde
+```
+
+---
+
+## 🔮 Senaryo Simülatörü
+
+### Borç Hızlandırma
+```
+Seçilen borç + Ekstra ödeme tutarı
+           ↓
+Deterministik algoritma (amortizasyon formülü)
+           ↓
+• Erken bitiş tarihi
+• Faiz tasarrufu
+• Ay-ay karşılaştırma tablosu
+• Gemini yorumu (1 çağrı)
+```
+
+### Büyük Karar
+```
+"Arabamı satsam ne olur?"
+           ↓
+Gemini ← Kullanıcının tam finansal snapshot'ı
+           ↓
+• Finansal etki (sayısal)
+• Pratik uyarı
+• 3 somut sonraki adım
+• Şu an vs Yeni Senaryo tablosu
+```
+
+---
+
+## 📱 Ekran Görüntüleri
+
+| Dashboard (Light) | Dashboard (Dark) |
+|---|---|
+| Bento grid, finansal skor, birikim hedefi | Koyu yeşil tema, glassmorphism kartlar |
+
+---
+
+## 🌐 Deploy
+
+### Railway (Önerilen)
+
+**Backend:**
+```bash
+# Railway dashboard'dan GitHub repo bağla
+# Root directory: backend
+# Environment variables: .env içeriğini ekle
+```
+
+**Frontend:**
+```bash
+# Ayrı servis aç
+# Root directory: frontend
+# VITE_API_URL = Railway backend URL'i
+```
+
+**Firebase:**
+```
+Authentication → Settings → Authorized domains
+→ Railway frontend URL'ini ekle
+```
+
+---
+
+## 🧪 Test
+
+```bash
+# Backend API test
+http://localhost:8000/docs
+
+# Örnek PDF ekstresi
+# /test-data/Ziraat_Ekstre_Nisan2026.pdf
+
+# Demo akışı:
+# 1. Kayıt ol
+# 2. Onboarding'i tamamla
+# 3. Test PDF yükle
+# 4. "Vay Be" anını gör
+# 5. Dashboard → Borç Haritası → Simülatör
+```
+
+---
+
+## 👥 Kullanıcı Senaryoları
+
+| Kullanıcı | Problem | Çözüm |
+|---|---|---|
+| **Zeynep, 24** | Maaş nereye gidiyor? | Harcama analizi + borç planı |
+| **Murat, 38** | 3 bankada borç, tablo yok | Birleşik analiz + simülatör |
+| **Selin, 31** | Düzensiz gelir paniği | Vergi karşılığı + sabit gider kalkanı |
+| **Kerem, 29** | Para var ama çalışmıyor | Birikim hedefi + senaryo |
+
+---
+
+## 📄 Lisans
+
+Bu proje BTK Akademi Hackathon 2026 kapsamında geliştirilmiştir.
+
+---
+
+<div align="center">
+
+**ParaPusula** · BTK Akademi Hackathon 2026
+
+*Finansal özgürlüğe giden yolu birlikte buluyoruz.*
+
+</div>

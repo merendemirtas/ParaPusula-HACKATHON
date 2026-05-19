@@ -15,7 +15,7 @@ import { useToast } from '../context/ToastContext.jsx'
 import EmptyState from './EmptyState.jsx'
 
 const RENKLER = [
-  '#0D9488', '#0F766E', '#14B8A6', '#D97706',
+  'var(--color-primary)', 'var(--color-primary-dark)', '#4A8C74', 'var(--color-warning)',
   '#7C3AED', '#EC4899', '#06B6D4', '#84CC16',
   '#0F172A', '#475569',
 ]
@@ -139,7 +139,7 @@ export default function Expenses() {
     tutar: toplamBirikim,
     islem_sayisi: hedefler.length,
     abonelik_mi: false,
-    renk: '#10B981',
+    renk: 'var(--color-positive)',
     isBirikim: true,
     islemler: hedefler.map(h => {
       const buAy = new Date().toISOString().slice(0, 7)
@@ -182,7 +182,7 @@ export default function Expenses() {
                 style={{ padding: 20, textAlign: 'left', cursor: 'pointer', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', position: 'relative' }}
               >
                 {gosterTrend && (
-                  <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 12, fontWeight: 700, color: pct > 0 ? '#E11D48' : '#0D9488', background: pct > 0 ? '#FFE4E6' : '#CCFBF1', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                  <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 12, fontWeight: 700, color: pct > 0 ? 'var(--color-negative)' : 'var(--color-primary)', background: pct > 0 ? 'var(--color-negative-light)' : 'var(--color-positive-light)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
                     {pct > 0 ? '▲' : '▼'} {Math.abs(pct).toFixed(0)}%
                   </div>
                 )}
@@ -441,7 +441,7 @@ function NormalIslemListesi({ islemler }) {
 }
 
 function KrediIslemListesi({ islemler, borcListesi, navigate }) {
-  const sinifRenk = { stratejik: '#10B981', yonetilebilir: '#F59E0B', kritik: '#EF4444', gri: '#F59E0B', kotu: '#EF4444' }
+  const sinifRenk = { stratejik: 'var(--color-positive)', yonetilebilir: 'var(--color-warning)', kritik: 'var(--color-negative)', gri: 'var(--color-warning)', kotu: 'var(--color-negative)' }
   const sinifBadge = { stratejik: 'badge-positive', yonetilebilir: 'badge-warning', kritik: 'badge-negative', gri: 'badge-warning', kotu: 'badge-negative' }
   const sinifEtiket = { stratejik: 'Stratejik', yonetilebilir: 'Yönetilebilir', kritik: 'Kritik', gri: 'Yönetilebilir', kotu: 'Kritik' }
 
@@ -453,7 +453,7 @@ function KrediIslemListesi({ islemler, borcListesi, navigate }) {
           islem.aciklama?.toLowerCase().includes(b.aciklama?.toLowerCase().slice(0, 8))
         )
         if (eslesen) {
-          const renk = sinifRenk[eslesen.siniflandirma] || '#F59E0B'
+          const renk = sinifRenk[eslesen.siniflandirma] || 'var(--color-warning)'
           return (
             <div key={i} style={{ padding: 18, borderRadius: 'var(--radius-lg)', border: `1px solid ${renk}30`, background: `${renk}06` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
@@ -538,7 +538,7 @@ function YildizPuanlama({ mevcutPuan, onSec, disabled }) {
       {[1, 2, 3, 4, 5].map(y => (
         <button key={y} onClick={() => !disabled && onSec(y)}
           onMouseEnter={() => setHover(y)} onMouseLeave={() => setHover(0)}
-          style={{ background: 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: 2, fontSize: 22, lineHeight: 1, color: y <= (hover || mevcutPuan) ? '#F59E0B' : 'var(--border-strong)', transition: 'color var(--transition-fast)', opacity: disabled ? 0.6 : 1 }}
+          style={{ background: 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: 2, fontSize: 22, lineHeight: 1, color: y <= (hover || mevcutPuan) ? 'var(--color-warning)' : 'var(--border-strong)', transition: 'color var(--transition-fast)', opacity: disabled ? 0.6 : 1 }}
           aria-label={`${y} yıldız`}>★</button>
       ))}
     </div>

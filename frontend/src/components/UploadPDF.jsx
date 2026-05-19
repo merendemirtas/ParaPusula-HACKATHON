@@ -88,7 +88,7 @@ export default function UploadPDF() {
         <div className="card animate-fade-scale" style={{ textAlign: 'center', padding: 56, maxWidth: 520, margin: '0 auto' }}>
           <div style={{
             width: 88, height: 88, margin: '0 auto 20px',
-            borderRadius: '50%', background: 'rgba(16,185,129,0.1)',
+            borderRadius: '50%', background: 'rgba(53,107,89,0.1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <svg width={44} height={44} viewBox="0 0 24 24" fill="none" stroke="var(--color-positive)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -218,7 +218,7 @@ export default function UploadPDF() {
               padding: '40px 24px',
               textAlign: 'center',
               cursor: 'pointer',
-              background: surukle ? 'var(--color-primary-soft)' : 'rgba(15,76,58,0.02)',
+              background: surukle ? 'var(--color-primary-soft)' : 'rgba(53,107,89,0.02)',
               transition: 'all var(--transition-base)',
               boxShadow: surukle ? 'var(--shadow-glow)' : 'none',
             }}

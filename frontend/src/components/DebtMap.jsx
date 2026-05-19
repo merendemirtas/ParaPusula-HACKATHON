@@ -13,16 +13,16 @@ const paraDuzenle = (sayi) => {
 }
 
 const SINIF = {
-  stratejik:     { renk: '#0F766E', etiket: 'Stratejik',     aciklama: 'Değer yaratan borç — eviniz borçtan hızlı değerleniyor',
-    badgeCls: 'badge-positive', barRenk: '#0D9488' },
-  yonetilebilir: { renk: '#92400E', etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
-    badgeCls: 'badge-warning',  barRenk: '#D97706' },
-  kritik:        { renk: '#9F1239', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
-    badgeCls: 'badge-negative', barRenk: '#E11D48' },
-  gri:  { renk: '#92400E', etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
-    badgeCls: 'badge-warning',  barRenk: '#D97706' },
-  kotu: { renk: '#9F1239', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
-    badgeCls: 'badge-negative', barRenk: '#E11D48' },
+  stratejik:     { renk: 'var(--color-primary-dark)', etiket: 'Stratejik',     aciklama: 'Değer yaratan borç — eviniz borçtan hızlı değerleniyor',
+    badgeCls: 'badge-positive', barRenk: 'var(--color-primary)' },
+  yonetilebilir: { renk: 'var(--color-warning)', etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
+    badgeCls: 'badge-warning',  barRenk: 'var(--color-warning)' },
+  kritik:        { renk: 'var(--color-negative)', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
+    badgeCls: 'badge-negative', barRenk: 'var(--color-negative)' },
+  gri:  { renk: 'var(--color-warning)', etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
+    badgeCls: 'badge-warning',  barRenk: 'var(--color-warning)' },
+  kotu: { renk: 'var(--color-negative)', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
+    badgeCls: 'badge-negative', barRenk: 'var(--color-negative)' },
 }
 
 export default function DebtMap() {
@@ -211,7 +211,7 @@ export default function DebtMap() {
                             style={{
                               background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.35)',
                               borderRadius: 8, padding: '4px 10px', cursor: 'pointer',
-                              fontSize: 12, fontWeight: 600, color: '#92400E', fontFamily: 'inherit',
+                              fontSize: 12, fontWeight: 600, color: 'var(--color-warning)', fontFamily: 'inherit',
                               display: 'flex', alignItems: 'center', gap: 4,
                             }}
                           >
@@ -260,14 +260,14 @@ export default function DebtMap() {
                       <div style={{
                         padding: '8px 14px', marginBottom: 12,
                         background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)',
-                        borderRadius: 8, fontSize: 12, color: '#92400E', display: 'flex',
+                        borderRadius: 8, fontSize: 12, color: 'var(--color-warning)', display: 'flex',
                         justifyContent: 'space-between', alignItems: 'center',
                       }}>
                         <span>⚠ Faiz oranı bilinmiyor — simülatör için girin</span>
                         <button
                           onClick={() => setEditFaiz(e => ({ ...e, [i]: '' }))}
                           style={{ background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 12, fontWeight: 600, color: '#D97706', fontFamily: 'inherit' }}
+                            fontSize: 12, fontWeight: 600, color: 'var(--color-warning)', fontFamily: 'inherit' }}
                         >Girin →</button>
                       </div>
                     )}
@@ -462,21 +462,21 @@ function SiniflandirmaKutusu({ tcmb }) {
 
   const siniflar = [
     {
-      renk: '#0F766E', bg: '#CCFBF1',
+      renk: 'var(--color-primary-dark)', bg: 'var(--color-positive-light)',
       baslik: 'STRATEJİK',
       alt: `Konut kredisi + Faiz < KFE (%${kfe.toFixed(1)})`,
       aciklama: 'Değer yaratan borç',
       ipucu: 'Eviniz KFE kadar değerleniyor; kredinizin faizi bu değerlenmeden az — borçlanma size net servet yaratıyor.',
     },
     {
-      renk: '#92400E', bg: '#FEF3C7',
+      renk: 'var(--color-warning)', bg: 'var(--color-warning-light)',
       baslik: 'YÖNETİLEBİLİR',
       alt: `Faiz < TÜFE (%${tufe.toFixed(1)})`,
       aciklama: 'Enflasyon borcu eritiyor',
       ipucu: 'Faiz oranınız enflasyonun altında — paranın satın alma gücü düşerken borcunuz görece küçülüyor.',
     },
     {
-      renk: '#9F1239', bg: '#FFE4E6',
+      renk: 'var(--color-negative)', bg: 'var(--color-negative-light)',
       baslik: 'KRİTİK',
       alt: `Faiz ≥ TÜFE (%${tufe.toFixed(1)})`,
       aciklama: 'Öncelikli öde',
@@ -564,7 +564,7 @@ function TcmbMetrik({ etiket, deger, alt, fallback }) {
       <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         {etiket}
       </p>
-      <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0D9488' }}>
+      <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--color-primary)' }}>
         {deger}
         {alt && <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 2 }}>{alt}</span>}
         {fallback && <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 4 }}>(tahmini)</span>}

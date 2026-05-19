@@ -1,7 +1,8 @@
-// KARAR: 6-satır grid; Row1=3kolon(Skor|Birikim|Nakit); Row2=2kolon(Gelir|Gider);
-//        Row3=LineChart(3ay,linear,null-slot); Row4=Kıyaslama; Row5=BirikimDetay; Row6=YZÖneriler.
+// KARAR: Bento grid layout; Row1=2kolon(Skor|Birikim); Row2=3kolon(Gelir|Gider|Nakit);
+//        Row3=LineChart(tam genişlik); Row4=Kıyaslama; Row5=YZÖneriler.
+// KARAR: Glassmorphism Finansal Sağlık + Birikim kartlarına; stagger animasyon kartlara.
 import React, { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -25,9 +26,9 @@ const paraDuzenle = (sayi) => {
 const AY_KISALT = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara']
 const AY_TAM    = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
 
-const skorRengi    = (s) => s >= 81 ? '#0D9488' : s >= 61 ? '#0D9488' : s >= 41 ? '#D97706' : '#E11D48'
+const skorRengi    = (s) => s >= 81 ? 'var(--color-positive)' : s >= 61 ? 'var(--color-positive)' : s >= 41 ? 'var(--color-warning)' : 'var(--color-negative)'
 const skorEtiketi  = (s) => s >= 81 ? 'Mükemmel' : s >= 61 ? 'İyi' : s >= 41 ? 'Dikkat' : 'Kritik'
-const skorBadgeCls = (s) => s >= 81 ? 'badge-positive' : s >= 61 ? 'badge-warning' : s >= 41 ? 'badge-warning' : 'badge-negative'
+const skorBadgeCls = (s) => s >= 81 ? 'badge-positive' : s >= 61 ? 'badge-positive' : s >= 41 ? 'badge-warning' : 'badge-negative'
 
 const bitisTahmini = (hedef) => {
   const b = hedef?.birikimler || []
@@ -48,12 +49,21 @@ const hedefPct = (h) => {
 }
 
 const GRAD_RENKLER = [
-  'linear-gradient(135deg,#0D9488,#0F766E)',
+  'linear-gradient(135deg,#356B59,#2A5547)',
   'linear-gradient(135deg,#1E3A8A,#3B82F6)',
   'linear-gradient(135deg,#7C3AED,#A855F7)',
   'linear-gradient(135deg,#B45309,#F59E0B)',
   'linear-gradient(135deg,#0F172A,#475569)',
 ]
+
+// ─── Stagger animasyon tanımları ──────────────────────────
+const containerVariants = {
+  animate: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } }
+}
+const itemVariants = {
+  initial: { opacity: 0, y: 20, scale: 0.97 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: 'easeOut' } },
+}
 
 // ─── Ana Bileşen ──────────────────────────────────────────
 export default function Dashboard() {
@@ -140,7 +150,7 @@ export default function Dashboard() {
           <p className="text-body" style={{ marginBottom: 32 }}>Finansal durumunuzu görmek için banka ekstreni yükleyin.</p>
           <div onClick={() => navigate('/upload')} className="card card-interactive animate-fade-in"
             style={{ padding: 56, textAlign: 'center', cursor: 'pointer', border: '2px dashed var(--border-default)', maxWidth: 560, margin: '0 auto' }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--color-primary-soft)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--color-primary-light)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M6 10l6-6 6 6" /><path d="M4 20h16" /></svg>
             </div>
             <h2 className="heading-md" style={{ marginBottom: 10 }}>Banka Ekstrenizi Yükleyin</h2>
@@ -164,7 +174,11 @@ export default function Dashboard() {
     : null
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+    >
     <div style={sayfaStil}>
       <div style={konteynerStil}>
         {/* Header */}
@@ -189,10 +203,16 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── SATIR 1: Finansal Skor | Birikim Hedefi ─────────── */}
-        <div className="grid-2" style={{ marginBottom: 16 }}>
-          {/* Finansal Sağlık Skoru — sol: radial, sağ: parametre listesi */}
-          <div className="card animate-fade-in" style={{ padding: 24 }}>
+        {/* ── BENTO GRID SATIR 1: Finansal Skor | Birikim Hedefi ─── */}
+        <motion.div
+          variants={containerVariants}
+          initial="initial"
+          animate="animate"
+          className="grid-2"
+          style={{ marginBottom: 16 }}
+        >
+          {/* Finansal Sağlık — glassmorphism kart */}
+          <motion.div variants={itemVariants} className="glass-card" style={{ padding: 24 }}>
             <p className="text-tiny" style={{ color: 'var(--color-primary)', marginBottom: 16 }}>FİNANSAL SAĞLIK</p>
             <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
               {/* Sol: dairesel gösterge (%40) */}
@@ -201,7 +221,7 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <RadialBarChart innerRadius="80%" outerRadius="100%" data={radialData} startAngle={90} endAngle={-270}>
                       <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-                      <RadialBar background={{ fill: '#F1F5F9' }} dataKey="value" cornerRadius={16} angleAxisId={0} />
+                      <RadialBar background={{ fill: 'var(--border-subtle)' }} dataKey="value" cornerRadius={16} angleAxisId={0} />
                     </RadialBarChart>
                   </ResponsiveContainer>
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -238,9 +258,10 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Birikim Hedefi Kartı */}
+          {/* Birikim Hedefi Kartı — glassmorphism */}
+          <motion.div variants={itemVariants} style={{ display: 'flex', flexDirection: 'column' }}>
           <BirikimHedefiKarti
             hedef={oncelikliHedef}
             hedefler={hedefler}
@@ -249,19 +270,28 @@ export default function Dashboard() {
             onBirikimEkle={() => setBirikimModal(true)}
             onHedefEkle={() => setOlusturModal('yeni')}
           />
-        </div>
+          </motion.div>
+        </motion.div>
 
-        {/* ── SATIR 2: Gelir | Gider | Nakit Akışı ───────────── */}
-        <div className="grid-3" style={{ marginBottom: 16 }}>
-          <MetrikKart etiket="Bu Ay Gelir" deger={paraDuzenle(gelir)} renk="var(--color-positive)" yon="up" />
-          <MetrikKart etiket="Bu Ay Gider" deger={paraDuzenle(gider)} renk="var(--color-negative)" yon="down" />
-          <MetrikKart
-            etiket="Nakit Akışı"
-            deger={(nakitAkisi >= 0 ? '+' : '−') + paraDuzenle(Math.abs(nakitAkisi))}
-            renk={nakitAkisi >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'}
-            yon={nakitAkisi >= 0 ? 'up' : 'down'}
-          />
-        </div>
+        {/* ── BENTO GRID SATIR 2: Gelir | Gider | Nakit Akışı ─── */}
+        <motion.div
+          variants={containerVariants}
+          initial="initial"
+          animate="animate"
+          className="grid-3"
+          style={{ marginBottom: 16 }}
+        >
+          <motion.div variants={itemVariants}><MetrikKart etiket="Bu Ay Gelir" deger={paraDuzenle(gelir)} renk="var(--color-positive)" yon="up" /></motion.div>
+          <motion.div variants={itemVariants}><MetrikKart etiket="Bu Ay Gider" deger={paraDuzenle(gider)} renk="var(--color-negative)" yon="down" /></motion.div>
+          <motion.div variants={itemVariants}>
+            <MetrikKart
+              etiket="Nakit Akışı"
+              deger={(nakitAkisi >= 0 ? '+' : '−') + paraDuzenle(Math.abs(nakitAkisi))}
+              renk={nakitAkisi >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'}
+              yon={nakitAkisi >= 0 ? 'up' : 'down'}
+            />
+          </motion.div>
+        </motion.div>
 
         {/* ── SATIR 3: Son 3 Ay Line Chart ───────────────────── */}
         <GiderTrendChart veri={trend} />
@@ -332,7 +362,7 @@ function BirikimHedefiKarti({ hedef, hedefler, hedefIndex, onDetayAc, onBirikimE
   if (!hedef) {
     return (
       <div onClick={onHedefEkle} className="card card-interactive animate-fade-in"
-        style={{ padding: 24, minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(13,148,136,0.02)' }}>
+        style={{ padding: 24, minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(53,107,89,0.02)' }}>
         <span style={{ fontSize: 40 }}>🎯</span>
         <div style={{ textAlign: 'center' }}>
           <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Birikim Hedefi</h3>
@@ -347,7 +377,7 @@ function BirikimHedefiKarti({ hedef, hedefler, hedefIndex, onDetayAc, onBirikimE
   const tahmin = bitisTahmini(hedef)
   const fotograf = hedef.fotograf_url || ''
   const gradIndex = hedefler.indexOf(hedef) % GRAD_RENKLER.length
-  const donutVeri = [{ value: hedef.toplam_birikim || 0, fill: '#0D9488' }, { value: Math.max(0, (hedef.hedef_tutar || 0) - (hedef.toplam_birikim || 0)), fill: 'rgba(255,255,255,0.2)' }]
+  const donutVeri = [{ value: hedef.toplam_birikim || 0, fill: 'var(--color-primary)' }, { value: Math.max(0, (hedef.hedef_tutar || 0) - (hedef.toplam_birikim || 0)), fill: 'rgba(255,255,255,0.15)' }]
 
   return (
     <div
@@ -418,7 +448,7 @@ function GiderTrendChart({ veri }) {
   const CustomDot = (props) => {
     const { cx, cy, payload } = props
     if (payload?.toplam_gider == null) return null
-    return <circle cx={cx} cy={cy} r={5} fill="#0D9488" stroke="#fff" strokeWidth={2} />
+    return <circle cx={cx} cy={cy} r={5} fill="var(--color-primary)" stroke="#fff" strokeWidth={2} />
   }
 
   const CustomTooltip = ({ active, payload }) => {
@@ -475,7 +505,7 @@ function GiderTrendChart({ veri }) {
                   stroke="url(#lineGrad)"
                   strokeWidth={2.5}
                   dot={<CustomDot />}
-                  activeDot={{ r: 8, fill: '#0D9488', stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 8, fill: 'var(--color-primary)', stroke: '#fff', strokeWidth: 2 }}
                   connectNulls={false}
                 />
               </LineChart>
@@ -509,7 +539,7 @@ function AylikKarsilastirma({ delta, oncekiAy }) {
 
 function KarsilastirmaMetrik({ etiket, deger, fark, iyi }) {
   return (
-    <div style={{ padding: 14, background: iyi ? 'rgba(13,148,136,0.04)' : 'rgba(225,29,72,0.04)', borderRadius: 'var(--radius-md)', border: `1px solid ${iyi ? 'rgba(13,148,136,0.12)' : 'rgba(225,29,72,0.12)'}` }}>
+    <div style={{ padding: 14, background: iyi ? 'rgba(53,107,89,0.05)' : 'rgba(225,29,72,0.04)', borderRadius: 'var(--radius-md)', border: `1px solid ${iyi ? 'rgba(53,107,89,0.12)' : 'rgba(225,29,72,0.12)'}` }}>
       <p className="text-tiny" style={{ margin: '0 0 4px' }}>{etiket}</p>
       <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{deger}</p>
       <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: iyi ? 'var(--color-positive)' : 'var(--color-negative)' }}>{fark}</p>
@@ -532,7 +562,7 @@ function BirikimHedefleriBolum({ userId, hedefler, onHedefEkle, onDetayAc, onGun
       </div>
 
       {hedefler.length === 0 ? (
-        <div onClick={onHedefEkle} className="card card-interactive" style={{ padding: 40, textAlign: 'center', cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(13,148,136,0.02)' }}>
+        <div onClick={onHedefEkle} className="card card-interactive" style={{ padding: 40, textAlign: 'center', cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(53,107,89,0.02)' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
           <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 600 }}>Birikim hedefi ekle</h3>
           <p className="text-body" style={{ margin: 0 }}>Araba, ev, tatil... Hedefinizi belirleyin, ilerlemenizi takip edin.</p>
@@ -559,7 +589,7 @@ function MiniHedefKarti({ hedef, gradIndex, onClick }) {
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{hedef.ad}</h3>
           <p className="text-small" style={{ margin: '2px 0 0' }}>Hedef: {paraDuzenle(hedef.hedef_tutar)}</p>
         </div>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#0D9488', background: '#CCFBF1', padding: '2px 8px', borderRadius: 20 }}>%{pct.toFixed(0)}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', background: 'var(--color-primary-light)', padding: '2px 8px', borderRadius: 20 }}>%{pct.toFixed(0)}</span>
       </div>
       {/* Mini progress bar */}
       <div style={{ height: 6, background: 'var(--border-subtle)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
@@ -584,8 +614,8 @@ function BirikimDetayModal({ userId, hedefler, onKapat, onGuncelle, onDuzenle, o
   const pct    = hedefPct(aktif)
   const tahmin = bitisTahmini(aktif)
   const donutVeri = [
-    { value: aktif.toplam_birikim || 0,    fill: '#0D9488' },
-    { value: Math.max(0, (aktif.hedef_tutar || 0) - (aktif.toplam_birikim || 0)), fill: '#F1F5F9' },
+    { value: aktif.toplam_birikim || 0,    fill: 'var(--color-primary)' },
+    { value: Math.max(0, (aktif.hedef_tutar || 0) - (aktif.toplam_birikim || 0)), fill: 'var(--border-subtle)' },
   ]
   const fotograf = aktif.fotograf_url || ''
 
@@ -645,7 +675,7 @@ function BirikimDetayModal({ userId, hedefler, onKapat, onGuncelle, onDuzenle, o
                   { e: 'Kalan',      d: paraDuzenle(Math.max(0, aktif.hedef_tutar - aktif.toplam_birikim)), renk: 'var(--color-negative)' },
                   { e: 'Tahmini Bitiş', d: tahmin || '— Veri yetersiz', renk: 'var(--color-primary)' },
                 ].map(m => (
-                  <div key={m.e} style={{ padding: '10px 12px', background: 'rgba(13,148,136,0.03)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+                  <div key={m.e} style={{ padding: '10px 12px', background: 'rgba(53,107,89,0.04)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
                     <p style={{ margin: 0, fontSize: 11, color: 'var(--text-tertiary)' }}>{m.e}</p>
                     <p style={{ margin: '3px 0 0', fontSize: 14, fontWeight: 700, color: m.renk }}>{m.d}</p>
                   </div>
@@ -901,9 +931,9 @@ function YZOneriler({ oneriler }) {
   const siraliOneriler = oneriler.map(normalize).sort((a, b) => (siralama[a.oncelik] ?? 1) - (siralama[b.oncelik] ?? 1))
 
   const stilMap = {
-    'Yüksek': { bant: '#E11D48', emoji: '🔴', etiket: 'YÜKSEK ÖNCELİK', cls: 'badge-negative', badgeBg: '#FFE4E6', badgeText: '#E11D48' },
-    'Orta':   { bant: '#D97706', emoji: '🟡', etiket: 'ORTA ÖNCELİK',   cls: 'badge-warning',  badgeBg: '#FEF3C7', badgeText: '#D97706' },
-    'Düşük':  { bant: '#0D9488', emoji: '🟢', etiket: 'DÜŞÜK ÖNCELİK',  cls: 'badge-positive', badgeBg: '#CCFBF1', badgeText: '#0D9488' },
+    'Yüksek': { bant: 'var(--color-negative)', emoji: '🔴', etiket: 'YÜKSEK ÖNCELİK', cls: 'badge-negative', badgeBg: 'var(--color-negative-light)', badgeText: 'var(--color-negative)' },
+    'Orta':   { bant: 'var(--color-warning)',  emoji: '🟡', etiket: 'ORTA ÖNCELİK',   cls: 'badge-warning',  badgeBg: 'var(--color-warning-light)',  badgeText: 'var(--color-warning)' },
+    'Düşük':  { bant: 'var(--color-positive)', emoji: '🟢', etiket: 'DÜŞÜK ÖNCELİK',  cls: 'badge-positive', badgeBg: 'var(--color-positive-light)', badgeText: 'var(--color-positive)' },
   }
 
   return (
@@ -939,7 +969,7 @@ function YZOneriler({ oneriler }) {
                     ))}
                   </div>
                   {o.kazanim && (
-                    <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(13,148,136,0.08)', border: '1px solid rgba(13,148,136,0.2)', marginBottom: 16 }}>
+                    <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(53,107,89,0.08)', border: '1px solid rgba(53,107,89,0.2)', marginBottom: 16 }}>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-positive)' }}>✓ Bu öneriyi uygularsan: {o.kazanim}</p>
                     </div>
                   )}
@@ -962,7 +992,7 @@ function MetrikKart({ etiket, deger, renk, yon }) {
     <div className="card card-interactive" style={{ padding: 24 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <p className="text-tiny" style={{ margin: 0 }}>{etiket}</p>
-        <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: yon === 'up' ? '#CCFBF1' : '#FFE4E6', color: yon === 'up' ? '#0D9488' : '#E11D48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: yon === 'up' ? 'var(--color-positive-light)' : 'var(--color-negative-light)', color: yon === 'up' ? 'var(--color-positive)' : 'var(--color-negative)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             {yon === 'up' ? <><path d="M7 17l10-10" /><path d="M8 7h9v9" /></> : <><path d="M17 7L7 17" /><path d="M16 17H7V8" /></>}
           </svg>

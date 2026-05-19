@@ -15,9 +15,9 @@ const para = (n) =>
 
 // ─── Skor rengi ───────────────────────────────────────────────
 function skorRenk(skor) {
-  if (skor >= 65) return '#10B981'
-  if (skor >= 50) return '#F59E0B'
-  return '#EF4444'
+  if (skor >= 65) return '#4A8C74'
+  if (skor >= 50) return '#FBBF24'
+  return '#F43F5E'
 }
 
 // ─── Animasyon değişkenleri ───────────────────────────────────
@@ -198,7 +198,7 @@ export default function Insight() {
             >
               {data.nakit_akisi_pozitif ? (
                 <>
-                  <div style={baslikStil('#10B981')}>
+                  <div style={baslikStil('#4A8C74')}>
                     Bu ay <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {para(data.nakit_akisi)} TL
                     </span> fazla verdin. 💚
@@ -207,7 +207,7 @@ export default function Insight() {
                 </>
               ) : (
                 <>
-                  <div style={baslikStil('#EF4444')}>
+                  <div style={baslikStil('#F43F5E')}>
                     Bu ay <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {para(data.nakit_akisi)} TL
                     </span> açık verdin.
@@ -254,8 +254,8 @@ export default function Insight() {
               <button
                 onClick={handleAnladim}
                 style={butonStil}
-                onMouseEnter={e => { e.currentTarget.style.background = '#059669' }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#10B981' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#2A5547' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#356B59' }}
               >
                 Detaylı Analizimi Gör →
               </button>
@@ -271,7 +271,7 @@ export default function Insight() {
 // ─── Stiller ──────────────────────────────────────────────────
 const kaplanStil = {
   position: 'fixed', inset: 0, zIndex: 9999,
-  background: 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)',
+  background: 'linear-gradient(135deg, #0A1A14 0%, #0D1F1A 40%, #1A3328 100%)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   padding: '24px',
   overflowY: 'auto',
@@ -311,7 +311,7 @@ const gercekStil = {
 }
 
 const butonStil = {
-  background: '#10B981',
+  background: '#356B59',
   color: '#fff',
   border: 'none',
   borderRadius: 16,
@@ -322,5 +322,5 @@ const butonStil = {
   fontFamily: 'inherit',
   transition: 'background 0.2s',
   letterSpacing: '-0.01em',
-  boxShadow: '0 0 32px rgba(16,185,129,0.35)',
+  boxShadow: '0 0 32px rgba(53,107,89,0.4)',
 }

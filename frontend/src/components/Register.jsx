@@ -115,7 +115,7 @@ function SolPanel() {
       data-reg-sol="true"
       className="desktop-only"
       style={{
-        background: 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)',
+        background: 'linear-gradient(135deg, #0A1A14 0%, #0D1F1A 40%, #1A3328 100%)',
         color: '#fff',
         display: 'flex',
         flexDirection: 'column',
@@ -137,11 +137,7 @@ function SolPanel() {
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
-        <svg width={40} height={40} viewBox="0 0 32 32" fill="none">
-          <circle cx="16" cy="16" r="15" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" />
-          <path d="M16 6 L19 16 L16 26 L13 16 Z" fill="#F59E0B" />
-          <circle cx="16" cy="16" r="2" fill="#fff" />
-        </svg>
+        <img src="/compass-rose.svg" width={40} height={40} alt="ParaPusula" style={{ display: 'block', filter: 'brightness(0) invert(1)' }} />
         <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>ParaPusula</span>
       </div>
 

@@ -83,7 +83,7 @@ export default function ChatAssistant() {
       transition={{ duration: 0.25 }}
       style={{
         minHeight: 'calc(100vh - 64px)',
-        background: '#F1F5F9',
+        background: 'var(--bg-page)',
         display: 'flex', flexDirection: 'column',
       }}
     >
@@ -117,7 +117,7 @@ export default function ChatAssistant() {
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
               <Avatar tip="asistan" />
               <div style={{
-                background: '#F1F5F9',
+                background: 'var(--bg-page)',
                 borderRadius: '18px 18px 18px 4px',
                 padding: '14px 18px',
                 boxShadow: 'var(--shadow-sm)',
@@ -183,10 +183,10 @@ export default function ChatAssistant() {
                 resize: 'none', minHeight: 48, maxHeight: 140,
                 padding: '14px 16px', borderRadius: 'var(--radius-lg)',
                 width: '100%',
-                background: '#FFFFFF',
+                background: 'var(--bg-card)',
                 borderColor: giris.length > MAX_KARAKTER ? 'var(--color-negative)' : undefined,
-                '--input-focus-border': '#0D9488',
-                '--input-focus-shadow': '0 0 0 3px rgba(13,148,136,0.15)',
+                '--input-focus-border': 'var(--color-primary)',
+                '--input-focus-shadow': 'var(--shadow-glow)',
               }}
             />
             {giris.length > 4000 && (
@@ -206,8 +206,8 @@ export default function ChatAssistant() {
             style={{
               width: 48, height: 48, padding: 0, borderRadius: 'var(--radius-lg)',
               flexShrink: 0,
-              background: '#0D9488',
-              '--btn-hover-bg': '#0F766E',
+              background: 'var(--color-primary)',
+              '--btn-hover-bg': 'var(--color-primary-dark)',
             }}
             aria-label="Gönder"
           >
@@ -237,12 +237,12 @@ function Avatar({ tip }) {
     return (
       <div style={{
         width: 36, height: 36, borderRadius: '50%',
-        background: '#0D9488', color: '#fff',
+        background: 'var(--color-primary)', color: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
       }}>
         <svg width={18} height={18} viewBox="0 0 32 32">
-          <path d="M16 6 L19 16 L16 26 L13 16 Z" fill="#F59E0B" />
+          <path d="M16 6 L19 16 L16 26 L13 16 Z" fill="var(--color-accent)" />
           <circle cx="16" cy="16" r="2" fill="#fff" />
         </svg>
       </div>
@@ -272,8 +272,8 @@ function Balon({ mesaj }) {
           borderRadius: ben ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
           background: mesaj.hata
             ? 'rgba(239,68,68,0.06)'
-            : ben ? '#1E293B' : '#F1F5F9',
-          color: mesaj.hata ? '#B91C1C' : ben ? '#fff' : '#1E293B',
+            : ben ? 'var(--color-primary)' : 'var(--bg-card)',
+          color: mesaj.hata ? 'var(--color-negative)' : ben ? '#fff' : 'var(--text-primary)',
           fontSize: 14, lineHeight: 1.55,
           boxShadow: ben ? 'none' : 'var(--shadow-sm)',
           border: ben ? 'none' : (mesaj.hata ? '1px solid rgba(239,68,68,0.2)' : '1px solid var(--border-subtle)'),
