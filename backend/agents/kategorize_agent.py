@@ -39,13 +39,19 @@ async def kategorize_agent_node(state: PipelineState) -> PipelineState:
             profil=kullanici_profili
         )
 
-        # Kategori sayısını logla
-        print(f"[Kategorize Agent] {len(kategorili_islemler)} kategori oluşturuldu")
+        # Tüm kategori ve işlemleri detaylıca logla
+        print(f"\n[Kategorize Agent] ─── {len(kategorili_islemler)} kategori oluşturuldu ───")
         for kategori in kategorili_islemler:
             abonelik_durumu = "(abonelik)" if kategori.get("abonelik_mi") else ""
-            print(f"  - {kategori.get('kategori_adi', '?')}: "
-                  f"{kategori.get('toplam_tutar', 0):,.2f} TL "
-                  f"{abonelik_durumu}")
+            islemler_listesi = kategori.get("islemler", [])
+            print(f"  KATEGORİ: {kategori.get('kategori_adi', '?')} "
+                  f"| {kategori.get('toplam_tutar', 0):,.2f} TL "
+                  f"| {len(islemler_listesi)} işlem {abonelik_durumu}")
+            for i in islemler_listesi:
+                faiz_str = f" | faiz: %{i.get('faiz_orani')}" if i.get("faiz_orani") else ""
+                print(f"    → {i.get('tarih','')} | {i.get('aciklama','?')[:50]} "
+                      f"| {i.get('tutar', 0):,.2f} TL{faiz_str}")
+        print(f"[Kategorize Agent] ─────────────────────────────────────\n")
 
         # State'i güncelle
         state["kategorili_islemler"] = kategorili_islemler

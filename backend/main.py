@@ -52,7 +52,7 @@ async def lifespan(_app: FastAPI):
     # Gemini API bağlantısını test et
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key:
-        print(f"  Gemini API Key: {'*' * 8}{gemini_key[-4:]}")
+        print(f"  Gemini API Key: {gemini_key[:5]}...{gemini_key[-4:]}")
     else:
         print("  UYARI: GEMINI_API_KEY tanimlanmamis!")
 

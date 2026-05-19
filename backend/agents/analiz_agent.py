@@ -364,38 +364,77 @@ async def analiz_agent_node(state: PipelineState) -> PipelineState:
             pass  # Yoksa keyword bazlı sınıflandırmayla devam
 
         # ── Borç listesini tespit et ve sınıflandır ───────────────
+        # KARAR: Kategori adı VE işlem açıklaması her ikisi de kontrol edilir.
+        # Gemini "Taşıt Kredisi Taksiti"ni "Ulaşım" kategorisine atayabilir —
+        # o durumda kategori adı eşleşmese bile açıklama eşleşmesi yakalasın.
         borc_kategori_anahtar = [
-            "kredi", "borç", "taksit", "kredi kartı",
-            "loan", "mortgage", "ödeme"
+            "kredi", "borç", "taksit", "loan", "mortgage",
+        ]
+        borc_islem_anahtar = [
+            "konut kredisi", "taşıt kredisi", "tasit kredisi",
+            "esnaf kredisi", "ihtiyaç kredisi", "ihtiyac kredisi",
+            "tüketici kredisi", "tuketici kredisi", "bireysel kredi",
+            "kredi taksiti", "kredi taksit", "kmh taksit",
+            "mortgage", "konut taksit",
         ]
         borc_listesi_raw = []
+        # Mükerrer önlemek için eklenen aciklama+tutar ikilisi takip edilir
+        _eklenen = set()
 
+        print(f"\n[Analiz Agent] ─── Borç tespiti başlıyor ───")
         for kategori in kategorili_islemler:
             kat_adi = kategori.get("kategori_adi", "").lower()
-            if any(k in kat_adi for k in borc_kategori_anahtar):
-                for islem in kategori.get("islemler", []):
-                    aylik = abs(float(islem.get("tutar", 0)))
-                    if aylik > 0:
-                        aciklama = islem.get("aciklama", "")
-                        # Öncelik: 1) Firestore manuel giriş  2) PDF'ten çıkarılan faiz  3) None
-                        faiz_manuel = (
-                            borc_detaylari.get(aciklama)
-                            or islem.get("faiz_orani")
-                        )
-                        sinif_bilgi = borc_siniflandir(
-                            aciklama=aciklama,
-                            tcmb=tcmb_verisi,
-                            faiz_manuel=faiz_manuel,
-                        )
-                        borc_listesi_raw.append({
-                            "aciklama": aciklama or "Borç Ödemesi",
-                            # KARAR: Ana para tahmini = aylık ödeme × 24 ay
-                            "ana_para": aylik * 24,
-                            "faiz_orani": sinif_bilgi["faiz_orani"],
-                            "kalan_taksit": 24,
-                            "aylik_odeme": aylik,
-                            "siniflandirma": sinif_bilgi["siniflandirma"]
-                        })
+            kat_borc_mu = any(k in kat_adi for k in borc_kategori_anahtar)
+
+            for islem in kategori.get("islemler", []):
+                aylik = abs(float(islem.get("tutar", 0)))
+                if aylik <= 0:
+                    continue
+                aciklama = islem.get("aciklama", "")
+                aciklama_kucuk = (
+                    aciklama
+                    .replace('İ','i').replace('I','i')
+                    .replace('Ş','ş').replace('Ğ','ğ')
+                    .replace('Ü','ü').replace('Ö','ö').replace('Ç','ç')
+                    .lower()
+                )
+                islem_borc_mu = any(k in aciklama_kucuk for k in borc_islem_anahtar)
+
+                if not (kat_borc_mu or islem_borc_mu):
+                    continue
+
+                anahtar = (aciklama, aylik)
+                if anahtar in _eklenen:
+                    continue
+                _eklenen.add(anahtar)
+
+                # Öncelik: 1) Firestore manuel giriş  2) PDF'ten çıkarılan faiz  3) None
+                faiz_manuel = (
+                    borc_detaylari.get(aciklama)
+                    or islem.get("faiz_orani")
+                )
+                sinif_bilgi = borc_siniflandir(
+                    aciklama=aciklama,
+                    tcmb=tcmb_verisi,
+                    faiz_manuel=faiz_manuel,
+                )
+                kaynak = "kategori" if kat_borc_mu else "açıklama"
+                print(f"[Analiz Agent]   BORÇ tespit [{kaynak}]: "
+                      f"'{aciklama[:40]}' | {aylik:,.0f} TL/ay | "
+                      f"{sinif_bilgi['siniflandirma']}"
+                      + (f" | faiz: %{faiz_manuel}" if faiz_manuel else " | faiz: bilinmiyor"))
+                borc_listesi_raw.append({
+                    "aciklama": aciklama or "Borç Ödemesi",
+                    # KARAR: Ana para tahmini = aylık ödeme × 24 ay
+                    "ana_para": aylik * 24,
+                    "faiz_orani": sinif_bilgi["faiz_orani"],
+                    "kalan_taksit": 24,
+                    "aylik_odeme": aylik,
+                    "siniflandirma": sinif_bilgi["siniflandirma"]
+                })
+
+        print(f"[Analiz Agent] Toplam tespit edilen borç: {len(borc_listesi_raw)} adet")
+        print(f"[Analiz Agent] ──────────────────────────────────────\n")
 
         # ── Finansal skoru deterministik hesapla ──────────────────
         finansal_skor = finansal_skor_hesapla(
@@ -453,16 +492,25 @@ async def analiz_agent_node(state: PipelineState) -> PipelineState:
         borc_modelleri = []
         for borc in borc_listesi_raw:
             try:
+                # KARAR: faiz_orani None olabilir (kullanıcı henüz girmemiş).
+                # float(None) → TypeError; key mevcut ama None ise default devreye girmez.
+                faiz_val = borc.get("faiz_orani")
+                faiz_orani = float(faiz_val) if faiz_val is not None else None
+
                 borc_modelleri.append(DebtItem(
                     aciklama=borc.get("aciklama", ""),
                     ana_para=float(borc.get("ana_para", 0)),
-                    faiz_orani=float(borc.get("faiz_orani", 0)),
+                    faiz_orani=faiz_orani,
                     kalan_taksit=int(borc.get("kalan_taksit", 0)),
                     aylik_odeme=float(borc.get("aylik_odeme", 0)),
                     siniflandirma=borc.get("siniflandirma", "yonetilebilir")
                 ))
-            except Exception:
-                pass
+                print(f"[Analiz Agent] DebtItem eklendi: '{borc.get('aciklama','')[:35]}' "
+                      f"| faiz: {faiz_orani or 'bilinmiyor'} | {borc.get('siniflandirma')}")
+            except Exception as e:
+                print(f"[Analiz Agent] DebtItem HATASI ('{borc.get('aciklama','')[:35]}'): {e}")
+
+        print(f"[Analiz Agent] Firestore'a yazılacak borç sayısı: {len(borc_modelleri)}")
 
         tcmb_modeli = TCMBData(**tcmb_verisi) if tcmb_verisi else None
 

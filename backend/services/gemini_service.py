@@ -22,61 +22,54 @@ class GeminiService:
     """
 
     def __init__(self):
-        # API anahtarını ortam değişkeninden yükle (lazy: çağrı anında kontrol edilir)
-        self._api_key = os.getenv("GEMINI_API_KEY", "")
-        self._model = None  # İlk gerçek çağrıda başlatılır
+        self._model = None  # Her çağrıda taze key ile yeniden başlatılır
+
+    def _taze_key(self) -> str:
+        """
+        .env'den her seferinde güncel API key'i okur — cached değer kullanmaz.
+        Çalışma sırasında key değiştirilirse bir sonraki çağrıda devreye girer.
+        """
+        load_dotenv(override=True)
+        key = os.getenv("GEMINI_API_KEY", "")
+        if not key:
+            raise ValueError(
+                "GEMINI_API_KEY ortam değişkeni tanımlanmamış! "
+                "backend/.env dosyasını oluşturun."
+            )
+        return key
 
     def _get_model(self):
-        """Model nesnesini lazy olarak başlatır (ilk çağrıda)."""
-        if self._model is None:
-            if not self._api_key:
-                raise ValueError(
-                    "GEMINI_API_KEY ortam değişkeni tanımlanmamış! "
-                    "backend/.env dosyasını oluşturun."
-                )
-            genai.configure(api_key=self._api_key)
-            self._model = genai.GenerativeModel("gemini-2.5-flash")
-        return self._model
+        """Her çağrıda .env'den taze key okuyarak model döndürür."""
+        key = self._taze_key()
+        gosterim = f"{key[:5]}...{key[-4:]}"
+        print(f"[GEMINI] API çağrısı — key: {gosterim}")
+        genai.configure(api_key=key)
+        # KARAR: Model önbelleğe alınmaz; key değişikliği anında etkin olsun.
+        return genai.GenerativeModel("gemini-2.5-flash")
 
     @property
     def model(self):
         return self._get_model()
 
-    async def _generate_with_retry(self, *args, max_deneme: int = 3, **kwargs):
+    async def _generate_with_retry(self, *args, **kwargs):
         """
-        Gemini generate_content'i 429 rate limit hatalarında retry yapar.
-        Her denemede bekleme süresini ikiye katlar (exponential backoff).
-        Günlük kota tamamen dolmuşsa (limit=0) anında hata fırlatır.
+        Tek deneme Gemini çağrısı — retry yok.
+        429 gelirse bekleme yapmadan kullanıcıya anlaşılır hata döndürür.
         """
-        for deneme in range(max_deneme):
-            try:
-                # Gemini sync API'yi thread'de çalıştır (async uyumluluk)
-                sonuc = await asyncio.to_thread(
-                    self.model.generate_content, *args, **kwargs
+        try:
+            sonuc = await asyncio.to_thread(
+                self.model.generate_content, *args, **kwargs
+            )
+            return sonuc
+        except Exception as e:
+            hata_str = str(e)
+            if "429" in hata_str or "RESOURCE_EXHAUSTED" in hata_str:
+                print(f"[GEMINI] 429 Kota hatası — key: {os.getenv('GEMINI_API_KEY','')[:5]}...")
+                raise RuntimeError(
+                    "Gemini API kotası doldu. Lütfen API key'inizi "
+                    "kontrol edin veya birkaç dakika bekleyin."
                 )
-                return sonuc
-            except Exception as e:
-                hata_str = str(e)
-                # 429 rate limit hatası
-                if "429" in hata_str:
-                    # Günlük kota tamamen dolmuş: limit=0 → retry faydasız
-                    if "limit: 0" in hata_str and "PerDay" in hata_str:
-                        print(f"[GEMINI] Günlük kota tükendi. Yeni API key gerekiyor.")
-                        raise RuntimeError(
-                            "Gemini API günlük kotası tükendi. "
-                            "Google AI Studio'dan yeni bir API key alın: https://aistudio.google.com"
-                        )
-                    # Geçici rate limit: bekle ve tekrar dene
-                    bekleme = 2 ** deneme  # 1s, 2s, 4s
-                    print(f"[GEMINI] Rate limit (429), {bekleme}s bekleniyor... (deneme {deneme+1}/{max_deneme})")
-                    await asyncio.sleep(bekleme)
-                    if deneme == max_deneme - 1:
-                        raise RuntimeError(
-                            f"Gemini API {max_deneme} denemede de yanıt vermedi. "
-                            "Lütfen birkaç dakika sonra tekrar deneyin."
-                        )
-                else:
-                    raise  # 429 dışındaki hataları direkt fırlat
+            raise  # Diğer hataları olduğu gibi fırlat
 
     def _rag_baglamlari_olustur(self, tcmb: Optional[dict], profil: Optional[dict]) -> str:
         """
@@ -166,8 +159,11 @@ KULLANICI PROFİLİ:
                 response = await self._generate_with_retry(
                     [{"mime_type": "application/pdf", "data": file_content}, prompt_override]
                 )
-                yanit_metni = self._json_temizle(response.text)
+                ham_yanit = response.text
+                print(f"\n[PDF Gemini] Ham yanıt ilk 800 karakter:\n{ham_yanit[:800]}\n")
+                yanit_metni = self._json_temizle(ham_yanit)
                 islemler = json.loads(yanit_metni)
+                print(f"[PDF Gemini] Toplam parse edilen işlem sayısı: {len(islemler)}")
 
                 def _faiz_al(i):
                     """faiz_orani alanını güvenli float veya None olarak döndürür."""
