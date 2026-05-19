@@ -5,6 +5,7 @@ Kullanıcının finansal snapshot ve sağlık skorunu döndüren endpoint'ler.
 
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from services.firebase_service import firebase_service
 from services.gemini_service import gemini_service
 from agents.analiz_agent import finansal_skor_hesapla, borc_siniflandir, borc_cikis_plani_hesapla
@@ -119,17 +120,25 @@ async def yeniden_hesapla(user_id: str):
         print(f"[RECALCULATE] Mevcut skor: {ham.get('finansal_skor')}")
 
         kategoriler = ham.get("kategoriler", [])
-        tcmb = ham.get("tcmb_verisi") or {"azami_faiz": 4.5, "kfe": 34.0, "tufe": 65.0, "asgari_ucret": 22104.0}
+        # Firestore tcmb_cache'ten güncel TÜFE/KFE oku
+        _tcmb_cache = None
+        try:
+            _tcmb_cache = await firebase_service.tcmb_cache_oku()
+        except Exception:
+            pass
+        tcmb = _tcmb_cache.model_dump() if _tcmb_cache else (
+            ham.get("tcmb_verisi") or {"azami_faiz": 5.1, "kfe": 34.0, "tufe": 30.65}
+        )
         gelir = float(ham.get("gelir", 0))
         gider = float(ham.get("toplam_gider", 0))
 
         # ── Borçları yeniden sınıflandır ──────────────────────
-        print(f"[RECALCULATE] TCMB verisi: kfe={tcmb.get('kfe')}, azami_faiz={tcmb.get('azami_faiz')}")
+        print(f"[RECALCULATE] Sınıflandırmada kullanılan TÜFE: %{tcmb.get('tufe')}")
+        print(f"[RECALCULATE] Sınıflandırmada kullanılan KFE:  %{tcmb.get('kfe')}")
         yeni_borclar = []
         for borc in ham.get("borc_listesi", []):
             aciklama = borc.get("aciklama", "")
-            aylik_odeme = float(borc.get("aylik_odeme", 0))
-            sinif_bilgi = borc_siniflandir(aciklama, aylik_odeme, tcmb)
+            sinif_bilgi = borc_siniflandir(aciklama, tcmb)
             yeni_borc = dict(borc)
             yeni_borc["siniflandirma"] = sinif_bilgi["siniflandirma"]
             yeni_borc["faiz_orani"] = sinif_bilgi["faiz_orani"]
@@ -198,6 +207,259 @@ async def yeniden_hesapla(user_id: str):
         import traceback
         print(f"[RECALCULATE] KRİTİK HATA:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Yeniden hesaplama hatası: {e}")
+
+
+class BorcFaizIstek(BaseModel):
+    borc_adi: str
+    faiz_yillik: float
+
+
+@router.put("/borc-faiz/{user_id}")
+async def borc_faiz_guncelle(user_id: str, istek: BorcFaizIstek):
+    """
+    Kullanıcının manuel girdiği faiz oranını kaydeder ve snapshot'taki
+    ilgili borcu günceller (siniflandirma + faiz_orani).
+    """
+    try:
+        if istek.faiz_yillik <= 0 or istek.faiz_yillik > 500:
+            raise HTTPException(status_code=400, detail="Faiz oranı 0-500 arasında olmalı.")
+
+        print(f"\n[BORC-FAIZ] Faiz güncellendi, reanalyze başlıyor...")
+        print(f"[BORC-FAIZ] Borç: '{istek.borc_adi[:40]}', Faiz: %{istek.faiz_yillik}")
+
+        # 1. borc_detaylari'na kaydet
+        await firebase_service.borc_faiz_kaydet(user_id, istek.borc_adi, istek.faiz_yillik)
+
+        # 2. Son snapshot'ı oku ve ilgili borcu güncelle
+        snap = await firebase_service.son_snapshot_oku(user_id)
+        if not snap:
+            return {"basarili": True, "borc_adi": istek.borc_adi, "faiz_yillik": istek.faiz_yillik,
+                    "guncellenen_borclar": []}
+
+        ham = await firebase_service.snapshot_ham_oku(user_id, snap.ay)
+        if not ham:
+            return {"basarili": True, "borc_adi": istek.borc_adi, "faiz_yillik": istek.faiz_yillik,
+                    "guncellenen_borclar": []}
+
+        # KARAR: Snapshot içindeki tcmb_verisi PDF işleme anındaki değer — eski olabilir.
+        # Firestore tcmb_cache'ten güncel veriyi oku; başarısız olursa snapshot'a düş.
+        tcmb_cache = None
+        try:
+            tcmb_cache = await firebase_service.tcmb_cache_oku()
+        except Exception:
+            pass
+        if tcmb_cache:
+            tcmb = tcmb_cache.model_dump()
+        else:
+            tcmb = ham.get("tcmb_verisi") or {"azami_faiz": 5.1, "kfe": 34.0, "tufe": 30.65}
+        print(f"[BORC-FAIZ] Sınıflandırmada kullanılan TÜFE: %{tcmb.get('tufe')}")
+        print(f"[BORC-FAIZ] Sınıflandırmada kullanılan KFE:  %{tcmb.get('kfe')}")
+
+        gelir      = float(ham.get("gelir", 0))
+        gider      = float(ham.get("toplam_gider", 0))
+        kategoriler = ham.get("kategoriler", [])
+        borclar    = ham.get("borc_listesi", [])
+
+        print(f"[BORC-FAIZ] Snapshot borçları: {[b.get('aciklama','?')[:25] for b in borclar]}")
+
+        guncellendi = False
+        for b in borclar:
+            # KARAR: strip() ile baştaki/sondaki boşluk farkını tolere et
+            if b.get("aciklama", "").strip() == istek.borc_adi.strip():
+                eski_sinif = b.get("siniflandirma", "?")
+                sinif_bilgi = borc_siniflandir(
+                    aciklama=istek.borc_adi,
+                    tcmb=tcmb,
+                    faiz_manuel=istek.faiz_yillik,
+                )
+                b["faiz_orani"]    = sinif_bilgi["faiz_orani"]
+                b["siniflandirma"] = sinif_bilgi["siniflandirma"]
+                guncellendi = True
+                print(f"[BORC-FAIZ] '{istek.borc_adi[:30]}' yeni sınıf: {sinif_bilgi['siniflandirma']} "
+                      f"(eski: {eski_sinif})")
+
+        if not guncellendi:
+            print(f"[BORC-FAIZ] UYARI: '{istek.borc_adi}' snapshot'ta bulunamadı — "
+                  f"sadece borc_detaylari güncellendi")
+
+        yeni_skor = finansal_skor_hesapla(
+            toplam_gelir=gelir,
+            toplam_gider=gider,
+            borc_listesi=borclar,
+            kategoriler=kategoriler,
+        )
+        await firebase_service.snapshot_guncelle(user_id, snap.ay, {
+            "borc_listesi":  borclar,
+            "finansal_skor": yeni_skor,
+        })
+        print(f"[BORC-FAIZ] Firestore güncellendi ✓  Yeni skor: {yeni_skor}/100\n")
+
+        # Frontend'in re-fetch yapmadan güncel veriyi kullanabilmesi için dön
+        return {
+            "basarili":          True,
+            "borc_adi":          istek.borc_adi,
+            "faiz_yillik":       istek.faiz_yillik,
+            "guncellenen_borclar": borclar,
+            "yeni_finansal_skor": yeni_skor,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Faiz güncelleme hatası: {e}")
+
+
+@router.post("/reanalyze/{user_id}")
+async def yeniden_analiz_et(user_id: str):
+    """
+    Mevcut snapshot'taki borçları güncellenmiş sınıflandırma kurallarıyla
+    yeniden analiz eder. PDF yüklemeden, Gemini çağrısı olmadan çalışır.
+
+    Yapılanlar:
+    1. Firestore snapshot oku
+    2. borc_siniflandir() yeni kurallarla yeniden çalıştır
+    3. finansal_skor_hesapla() ile skoru güncelle
+    4. Firestore'a yaz
+    5. Değişen sınıflandırmaları rapor et
+    """
+    try:
+        snapshot = await firebase_service.son_snapshot_oku(user_id)
+        if not snapshot:
+            raise HTTPException(status_code=404, detail="Önce PDF yükleyin.")
+
+        ay  = snapshot.ay
+        ham = await firebase_service.snapshot_ham_oku(user_id, ay)
+        if not ham:
+            raise HTTPException(status_code=404, detail="Snapshot verisi okunamadı.")
+
+        # Firestore tcmb_cache'ten güncel TÜFE/KFE oku
+        tcmb_cache = None
+        try:
+            tcmb_cache = await firebase_service.tcmb_cache_oku()
+        except Exception:
+            pass
+        if tcmb_cache:
+            tcmb = tcmb_cache.model_dump()
+        else:
+            tcmb = ham.get("tcmb_verisi") or {"azami_faiz": 5.1, "kfe": 34.0, "tufe": 30.65}
+        print(f"[REANALYZE] Sınıflandırmada kullanılan TÜFE: %{tcmb.get('tufe')}")
+        print(f"[REANALYZE] Sınıflandırmada kullanılan KFE:  %{tcmb.get('kfe')}")
+
+        gelir = float(ham.get("gelir", 0))
+        gider = float(ham.get("toplam_gider", 0))
+        kategoriler = ham.get("kategoriler", [])
+
+        degisimler = []
+        yeni_borclar = []
+
+        # Manuel faiz girişlerini çek — reanalyze'da da kullanılsın
+        borc_detaylari = {}
+        try:
+            borc_detaylari = await firebase_service.borc_detaylari_oku(user_id)
+        except Exception:
+            pass
+
+        for borc in ham.get("borc_listesi", []):
+            eski_sinif = borc.get("siniflandirma", "?")
+            aciklama   = borc.get("aciklama", "")
+            sinif_bilgi = borc_siniflandir(
+                aciklama=aciklama,
+                tcmb=tcmb,
+                faiz_manuel=borc_detaylari.get(aciklama),
+            )
+            yeni_sinif = sinif_bilgi["siniflandirma"]
+            yeni_borc  = dict(borc)
+            yeni_borc["siniflandirma"] = yeni_sinif
+            yeni_borc["faiz_orani"]    = sinif_bilgi["faiz_orani"]
+            yeni_borclar.append(yeni_borc)
+
+            if eski_sinif != yeni_sinif:
+                degisimler.append({
+                    "aciklama": borc.get("aciklama", "?")[:40],
+                    "eski":     eski_sinif,
+                    "yeni":     yeni_sinif,
+                })
+                print(f"[REANALYZE] '{borc.get('aciklama','')[:30]}': {eski_sinif} → {yeni_sinif}")
+
+        yeni_skor = finansal_skor_hesapla(
+            toplam_gelir=gelir,
+            toplam_gider=gider,
+            borc_listesi=yeni_borclar,
+            kategoriler=kategoriler,
+        )
+
+        await firebase_service.snapshot_guncelle(user_id, ay, {
+            "borc_listesi":         yeni_borclar,
+            "finansal_skor":        yeni_skor,
+            "yeniden_analiz_tarihi": datetime.now().isoformat(),
+        })
+
+        print(f"[REANALYZE] Tamamlandı — {len(degisimler)} borç sınıfı değişti, skor: {yeni_skor}")
+
+        return {
+            "basarili":       True,
+            "ay":             ay,
+            "yeni_skor":      yeni_skor,
+            "eski_skor":      ham.get("finansal_skor"),
+            "degisimler":     degisimler,
+            "degisim_sayisi": len(degisimler),
+            "toplam_borc":    len(yeni_borclar),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[REANALYZE] HATA:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Yeniden analiz hatası: {e}")
+
+
+@router.get("/snapshots/{user_id}/trend")
+async def gider_trend_getir(user_id: str):
+    """
+    Son 3 aya ait gider/gelir verisi döndürür.
+    Her zaman 3 slot döner — veri olmayan aylar null değerli.
+    Recharts connectNulls={false} ile eksik aylar grafik üstünde boş bırakılır.
+    """
+    from datetime import date as _date
+    AY_KISALT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+    AY_TAM    = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+
+    today = _date.today()
+
+    # 3 ay slot oluştur: 2 ay önce → 1 ay önce → bu ay
+    slots = []
+    for i in range(2, -1, -1):
+        month = today.month - i
+        year  = today.year
+        while month <= 0:
+            month += 12
+            year  -= 1
+        ay_str = f"{year}-{month:02d}"
+        slots.append({
+            "ay":           ay_str,
+            "ay_kisalt":    f"{AY_KISALT[month-1]} {str(year)[2:]}",
+            "ay_tam":       f"{AY_TAM[month-1]} {year}",
+            "toplam_gider": None,   # null → Recharts çizgi çizmez
+            "gelir":        None,
+            "finansal_skor": None,
+        })
+
+    # Mevcut snapshot'ları çekip slot'lara yerleştir
+    try:
+        snapshots = await firebase_service.snapshot_listesi_oku(user_id, limit=3)
+        snap_map  = {s.get("ay", ""): s for s in snapshots}
+        for slot in slots:
+            s = snap_map.get(slot["ay"])
+            if s:
+                slot["toplam_gider"]  = round(float(s.get("toplam_gider", 0)), 2)
+                slot["gelir"]         = round(float(s.get("gelir", 0)), 2)
+                slot["finansal_skor"] = int(s.get("finansal_skor", 0))
+    except Exception:
+        pass  # Hata olursa null slotlarla devam
+
+    return {"user_id": user_id, "veri": slots}
 
 
 @router.get("/comparison/{user_id}")

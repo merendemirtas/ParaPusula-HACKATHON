@@ -168,14 +168,27 @@ KULLANICI PROFİLİ:
                 )
                 yanit_metni = self._json_temizle(response.text)
                 islemler = json.loads(yanit_metni)
+
+                def _faiz_al(i):
+                    """faiz_orani alanını güvenli float veya None olarak döndürür."""
+                    val = i.get("faiz_orani")
+                    if val is None:
+                        return None
+                    try:
+                        f = float(val)
+                        return f if 0 < f <= 500 else None
+                    except (TypeError, ValueError):
+                        return None
+
                 return [
                     {
-                        "tarih": str(i.get("tarih", "")),
-                        "tutar": float(i.get("tutar", 0)),
-                        "aciklama": str(i.get("aciklama", "")),
-                        "banka": str(i.get("banka", banka)),
-                        "tur": str(i.get("tur", "gider")),
-                        "kategori": i.get("kategori"),
+                        "tarih":       str(i.get("tarih", "")),
+                        "tutar":       float(i.get("tutar", 0)),
+                        "aciklama":    str(i.get("aciklama", "")),
+                        "banka":       str(i.get("banka", banka)),
+                        "tur":         str(i.get("tur", "gider")),
+                        "kategori":    i.get("kategori"),
+                        "faiz_orani":  _faiz_al(i),
                     }
                     for i in islemler
                     if isinstance(i, dict) and "tarih" in i and "tutar" in i
@@ -299,6 +312,13 @@ Görevler:
 1. Her işleme uygun bir Türkçe kategori ata (örn: "Market Alışverişi", "Faturalar", "Yemek & Restoran",
    "Ulaşım", "Eğlence", "Sağlık", "Eğitim", "Giyim", "Kredi/Borç Ödemesi", "Maaş Geliri",
    "Abonelikler", "Diğer Giderler", "Diğer Gelirler")
+
+   KRİTİK: Aşağıdaki açıklamaları gördüğünde kategori KESİNLİKLE "Kredi/Borç Ödemesi" olmalı:
+   "Konut Kredisi Taksiti", "Taşıt Kredisi Taksiti", "Esnaf Kredisi Taksiti",
+   "Kredi Taksiti", "İhtiyaç Kredisi Taksiti", "Tüketici Kredisi Taksiti",
+   "Bireysel Kredi Taksiti", "KMH Taksiti", "Mortgage Taksiti",
+   "kredi", "taksit", "mortgage", "loan payment" — bunları içeren tüm işlemler
+   "Kredi/Borç Ödemesi" kategorisine girer. Hiçbir zaman "Diğer Giderler" yapma.
 2. Abonelik olan harcamaları kesinlikle tespit et ve abonelik_mi=true yap.
    Şu servisler KESİNLİKLE abonelik: Netflix, Spotify, YouTube Premium, Amazon Prime, Disney+,
    Exxen, BluTV, Gain, MUBI, Apple TV+, Deezer, Tidal, ChatGPT Plus, Copilot, Canva, Adobe,

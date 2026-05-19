@@ -44,9 +44,28 @@ ZIRAAT BANKASI EKSTRESİ FORMAT BİLGİSİ:
 TÜM işlemleri çıkar. Her işlem için:
 - tarih: "YYYY-MM-DD" formatına çevir (örn: "2025-01-15")
 - tutar: Pozitif sayı (gelir için +, gider için -)
-- aciklama: Kısa, anlamlı Türkçe açıklama
+- aciklama: Aşağıdaki KRİTİK KURALA göre doldur (bak)
 - banka: "Ziraat"
 - tur: "gelir" (ALACAK) veya "gider" (BORÇ)
+- faiz_orani: Açıklamada yıllık faiz oranı yazıyorsa rakam olarak yaz, yoksa null
+
+KRİTİK KURAL — Kredi Ödemeleri:
+Aşağıdaki ifadelerden herhangi birini görüyorsan, aciklama alanını OLDUĞU GİBİ yaz (kısaltma yapma,
+değiştirme). Bu ifadeler borç taksiti olduğunu gösterir:
+  "Konut Kredisi Taksiti"
+  "Taşıt Kredisi Taksiti"
+  "Esnaf Kredisi Taksiti"
+  "Kredi Taksiti"
+  "İhtiyaç Kredisi Taksiti"
+  "Tüketici Kredisi Taksiti"
+  "Bireysel Kredi Taksiti"
+  "KMH Taksiti"
+  "Mortgage Taksiti"
+
+Faiz çıkarma örneği:
+- "Konut Kredisi Taksiti (%30 Yıllık Faizli)" → aciklama: "Konut Kredisi Taksiti", faiz_orani: 30.0
+- "Esnaf Kredisi Taksiti - %52 Faiz"          → aciklama: "Esnaf Kredisi Taksiti", faiz_orani: 52.0
+- "Taşıt Kredisi Taksiti"                     → aciklama: "Taşıt Kredisi Taksiti", faiz_orani: null
 """
 
 HALKBANK_PROMPT = """
@@ -62,9 +81,16 @@ HALKBANK EKSTRESİ FORMAT BİLGİSİ:
 TÜM işlemleri çıkar. Her işlem için:
 - tarih: "YYYY-MM-DD" formatına çevir (örn: "2025-01-15")
 - tutar: Pozitif sayı (gelir için +, gider için -)
-- aciklama: Kısa, anlamlı Türkçe açıklama
+- aciklama: Kredi taksit açıklamalarını OLDUĞU GİBİ yaz (bak: KRİTİK KURAL)
 - banka: "Halkbank"
 - tur: "gelir" veya "gider"
+- faiz_orani: Açıklamada yıllık faiz oranı yazıyorsa rakam olarak yaz, yoksa null
+
+KRİTİK KURAL — Kredi Ödemeleri:
+"Konut Kredisi Taksiti", "Taşıt Kredisi Taksiti", "Esnaf Kredisi Taksiti",
+"Kredi Taksiti", "İhtiyaç Kredisi Taksiti", "Tüketici Kredisi Taksiti",
+"Bireysel Kredi Taksiti", "KMH Taksiti" — bunları OLDUĞU GİBİ yaz.
+Faiz varsa faiz_orani alanına yaz.
 """
 
 JSON_FORMAT_TALIMATI = """
@@ -72,17 +98,27 @@ Aşağıdaki JSON formatında yanıt ver (sadece JSON, başka hiçbir şey yazma
 [
   {
     "tarih": "2025-01-05",
+    "tutar": -2850.00,
+    "aciklama": "Konut Kredisi Taksiti",
+    "banka": "BANKA_ADI",
+    "tur": "gider",
+    "faiz_orani": 30.0
+  },
+  {
+    "tarih": "2025-01-05",
     "tutar": -450.00,
     "aciklama": "Migros Market Alışverişi",
     "banka": "BANKA_ADI",
-    "tur": "gider"
+    "tur": "gider",
+    "faiz_orani": null
   },
   {
     "tarih": "2025-01-01",
     "tutar": 25000.00,
     "aciklama": "Maaş Ödemesi",
     "banka": "BANKA_ADI",
-    "tur": "gelir"
+    "tur": "gelir",
+    "faiz_orani": null
   }
 ]
 """
@@ -130,6 +166,13 @@ async def pdf_agent_node(state: PipelineState) -> PipelineState:
         json_talimati = JSON_FORMAT_TALIMATI.replace("BANKA_ADI", banka)
         tam_prompt = banka_prompt + "\n" + json_talimati
 
+        print(f"\n[PDF Agent] ─── Prompt gönderiliyor ({'Ziraat' if banka != 'Halkbank' else 'Halkbank'}) ───")
+        print(f"[PDF Agent] Kredi anahtar kelimeleri:")
+        print(f"[PDF Agent]   'Konut Kredisi Taksiti', 'Taşıt Kredisi Taksiti',")
+        print(f"[PDF Agent]   'Esnaf Kredisi Taksiti', 'Kredi Taksiti',")
+        print(f"[PDF Agent]   'İhtiyaç Kredisi Taksiti', 'Tüketici Kredisi Taksiti'")
+        print(f"[PDF Agent] Faiz çıkarımı: açıklamada %NN varsa → faiz_orani")
+
         # Gemini üzerinden işlemleri çıkar
         ham_islemler = await gemini_service.pdf_icerik_cikar(
             file_content=file_content,
@@ -139,7 +182,19 @@ async def pdf_agent_node(state: PipelineState) -> PipelineState:
             profil=kullanici_profili
         )
 
-        print(f"[PDF Agent] {len(ham_islemler)} işlem çıkarıldı — Banka: {banka}")
+        print(f"\n[PDF Agent] ─── {len(ham_islemler)} işlem çıkarıldı — Banka: {banka} ───")
+        kredi_islemleri = [i for i in ham_islemler
+                           if any(k in i.get("aciklama", "").lower()
+                                  for k in ["kredi", "taksit", "mortgage", "kmh"])]
+        print(f"[PDF Agent] Kredi ödemesi tespit edilenler ({len(kredi_islemleri)} adet):")
+        for i in kredi_islemleri:
+            faiz_str = f" | faiz_orani: %{i.get('faiz_orani')}" if i.get("faiz_orani") else ""
+            print(f"[PDF Agent]   {i.get('tarih')} | {i.get('aciklama')} | {i.get('tutar')} TL{faiz_str}")
+        if not kredi_islemleri:
+            print(f"[PDF Agent]   (hiç kredi ödemesi bulunamadı — açıklama listesi:)")
+            for i in ham_islemler[:10]:
+                print(f"[PDF Agent]   → '{i.get('aciklama')}'")
+        print(f"[PDF Agent] ────────────────────────────────────────────\n")
 
         state["ham_islemler"] = ham_islemler
         state["mevcut_adim"] = "pdf_tamamlandi"

@@ -1,8 +1,9 @@
 // KARAR: Borç çıkış planı accordion default açık (kullanıcı bilgiyi hemen görsün); auth uid kullanılıyor.
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAnalysis } from '../services/api.js'
+import { getAnalysis, getTCMBLatest, updateBorcFaiz } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import EmptyState from './EmptyState.jsx'
 
 const paraDuzenle = (sayi) => {
@@ -29,17 +30,61 @@ export default function DebtMap() {
   const navigate = useNavigate()
   const { kullanici } = useAuth()
   const userId = kullanici?.uid || localStorage.getItem('parapusula_user_id') || ''
+  const { addToast } = useToast()
 
   const [analiz, setAnaliz] = useState(null)
+  const [tcmbVerisi, setTcmbVerisi] = useState(null)
   const [yukleniyor, setYukleniyor] = useState(true)
   const [hata, setHata] = useState('')
   const [planAcik, setPlanAcik] = useState(true)
+  // editFaiz: { [index]: inputValue } — hangi kart edit modunda
+  const [editFaiz, setEditFaiz] = useState({})
+  const [savingFaiz, setSavingFaiz] = useState({})
+
+  async function faizKaydet(index, borc) {
+    const deger = parseFloat((editFaiz[index] || '').replace(',', '.'))
+    if (!deger || deger <= 0 || deger > 500) {
+      addToast('Geçerli bir faiz oranı girin (0-500 arası)', 'error')
+      return
+    }
+    setSavingFaiz(s => ({ ...s, [index]: true }))
+    try {
+      const sonuc = await updateBorcFaiz(userId, borc.aciklama, deger)
+
+      // Backend güncel borc_listesi dönüyorsa onu kullan (siniflandirma dahil)
+      // Dönmüyorsa ya da eksikse full re-fetch yap
+      if (sonuc?.guncellenen_borclar?.length) {
+        setAnaliz(prev => ({
+          ...prev,
+          borc_listesi: sonuc.guncellenen_borclar,
+          finansal_skor: sonuc.yeni_finansal_skor ?? prev.finansal_skor,
+        }))
+      } else {
+        // Fallback: Firestore'dan taze veriyi çek
+        const taze = await getAnalysis(userId)
+        setAnaliz(taze)
+      }
+
+      setEditFaiz(e => { const n = { ...e }; delete n[index]; return n })
+      addToast('Faiz oranı güncellendi ✓', 'success')
+    } catch (e) {
+      addToast(e.message || 'Kaydedilemedi', 'error')
+    } finally {
+      setSavingFaiz(s => { const n = { ...s }; delete n[index]; return n })
+    }
+  }
 
   useEffect(() => {
     if (!userId) return
     setYukleniyor(true)
-    getAnalysis(userId)
-      .then(setAnaliz)
+    Promise.all([
+      getAnalysis(userId),
+      getTCMBLatest().catch(() => null),
+    ])
+      .then(([analizData, tcmb]) => {
+        setAnaliz(analizData)
+        setTcmbVerisi(tcmb)
+      })
       .catch(err => setHata(err.message?.includes('404') ? 'yok' : err.message))
       .finally(() => setYukleniyor(false))
   }, [userId])
@@ -112,6 +157,9 @@ export default function DebtMap() {
               <MetrikKart etiket="Borç Sayısı" deger={`${borcListesi.length} adet`} renk="var(--color-primary)" />
             </div>
 
+            {/* Sınıflandırma ve Veri Kaynağı */}
+            <SiniflandirmaKutusu tcmb={tcmbVerisi} />
+
             {/* Borç kartları */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
               {borcListesi.map((borc, i) => {
@@ -143,9 +191,87 @@ export default function DebtMap() {
                     {/* Alt metrikler */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16, marginBottom: 16 }}>
                       <MiniMetrik etiket="Ana Para" deger={paraDuzenle(borc.ana_para)} />
-                      <MiniMetrik etiket="Faiz" deger={`%${borc.faiz_orani?.toFixed(1) || '0'} yıllık`} />
+
+                      {/* Faiz oranı — bilinmiyorsa sarı uyarı + inline edit */}
+                      <div>
+                        <p className="text-tiny" style={{ margin: '0 0 4px' }}>Faiz</p>
+                        {borc.faiz_orani ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                              %{borc.faiz_orani.toFixed(1)} yıllık
+                            </span>
+                            <button
+                              onClick={() => setEditFaiz(e => ({ ...e, [i]: String(borc.faiz_orani) }))}
+                              title="Düzenle"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }}
+                            >✏️</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditFaiz(e => ({ ...e, [i]: '' }))}
+                            style={{
+                              background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.35)',
+                              borderRadius: 8, padding: '4px 10px', cursor: 'pointer',
+                              fontSize: 12, fontWeight: 600, color: '#92400E', fontFamily: 'inherit',
+                              display: 'flex', alignItems: 'center', gap: 4,
+                            }}
+                          >
+                            ⚠ Bilinmiyor — girin
+                          </button>
+                        )}
+                        {editFaiz.hasOwnProperty(i) && (
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="Örn: 42.5"
+                              value={editFaiz[i]}
+                              onChange={e => setEditFaiz(f => ({ ...f, [i]: e.target.value }))}
+                              autoFocus
+                              style={{
+                                width: 90, padding: '6px 8px', fontSize: 13,
+                                border: '1.5px solid var(--color-primary)', borderRadius: 8,
+                                background: 'var(--bg-surface)', color: 'var(--text-primary)',
+                                fontFamily: 'inherit', outline: 'none',
+                              }}
+                            />
+                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>%/yıl</span>
+                            <button
+                              onClick={() => faizKaydet(i, borc)}
+                              disabled={savingFaiz[i]}
+                              className="btn btn-primary"
+                              style={{ padding: '5px 12px', fontSize: 12 }}
+                            >
+                              {savingFaiz[i] ? '...' : 'Kaydet'}
+                            </button>
+                            <button
+                              onClick={() => setEditFaiz(e => { const n = { ...e }; delete n[i]; return n })}
+                              className="btn btn-ghost"
+                              style={{ padding: '5px 8px', fontSize: 12 }}
+                            >İptal</button>
+                          </div>
+                        )}
+                      </div>
+
                       <MiniMetrik etiket="Kalan Taksit" deger={`${borc.kalan_taksit} ay`} />
                     </div>
+
+                    {/* Faiz bilinmiyorsa kart altında tam genişlik uyarı */}
+                    {!borc.faiz_orani && !editFaiz.hasOwnProperty(i) && (
+                      <div style={{
+                        padding: '8px 14px', marginBottom: 12,
+                        background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)',
+                        borderRadius: 8, fontSize: 12, color: '#92400E', display: 'flex',
+                        justifyContent: 'space-between', alignItems: 'center',
+                      }}>
+                        <span>⚠ Faiz oranı bilinmiyor — simülatör için girin</span>
+                        <button
+                          onClick={() => setEditFaiz(e => ({ ...e, [i]: '' }))}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer',
+                            fontSize: 12, fontWeight: 600, color: '#D97706', fontFamily: 'inherit' }}
+                        >Girin →</button>
+                      </div>
+                    )}
 
                     {/* Progress bar */}
                     <div>
@@ -277,6 +403,130 @@ export default function DebtMap() {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function SiniflandirmaKutusu({ tcmb }) {
+  const [tooltip, setTooltip] = useState(null)
+
+  const tufe     = tcmb?.tufe        ?? 30.65
+  const kfe      = tcmb?.kfe         ?? 34.0
+  const azami    = tcmb?.azami_faiz  ?? 5.13
+  const tarih    = tcmb?.guncelleme_tarihi
+    ? new Date(tcmb.guncelleme_tarihi).toLocaleDateString('tr-TR')
+    : '—'
+  const kfeFallback = !tcmb?.kfe
+
+  const siniflar = [
+    {
+      renk: '#10B981', bg: 'rgba(16,185,129,0.10)',
+      baslik: 'STRATEJİK',
+      alt: `Konut kredisi + Faiz < KFE (%${kfe.toFixed(1)})`,
+      aciklama: 'Değer yaratan borç',
+      ipucu: 'Eviniz KFE kadar değerleniyor; kredinizin faizi bu değerlenmeden az — borçlanma size net servet yaratıyor.',
+    },
+    {
+      renk: '#F59E0B', bg: 'rgba(245,158,11,0.10)',
+      baslik: 'YÖNETİLEBİLİR',
+      alt: `Faiz < TÜFE (%${tufe.toFixed(1)})`,
+      aciklama: 'Enflasyon borcu eritiyor',
+      ipucu: 'Faiz oranınız enflasyonun altında — paranın satın alma gücü düşerken borcunuz görece küçülüyor.',
+    },
+    {
+      renk: '#EF4444', bg: 'rgba(239,68,68,0.10)',
+      baslik: 'KRİTİK',
+      alt: `Faiz ≥ TÜFE (%${tufe.toFixed(1)})`,
+      aciklama: 'Öncelikli öde',
+      ipucu: 'Faiz oranı enflasyonun üzerinde — her ay gerçek değerde yükümlülüğünüz büyüyor. Bu borcu önce bitir.',
+    },
+  ]
+
+  return (
+    <div
+      style={{
+        background: '#F8FAFC',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 16,
+        padding: '20px 24px',
+        marginBottom: 28,
+        transition: 'box-shadow 0.2s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)' }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
+    >
+      {/* Üst: 3 sınıf yan yana */}
+      <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+        {siniflar.map((s, i) => (
+          <React.Fragment key={s.baslik}>
+            <div style={{ flex: 1, minWidth: 160, padding: '0 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <span style={{
+                  background: s.bg, color: s.renk,
+                  borderRadius: 20, padding: '3px 10px',
+                  fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+                }}>
+                  {s.baslik}
+                </span>
+                <span
+                  style={{ position: 'relative', cursor: 'default' }}
+                  onMouseEnter={() => setTooltip(i)}
+                  onMouseLeave={() => setTooltip(null)}
+                >
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)', userSelect: 'none' }}>(?)</span>
+                  {tooltip === i && (
+                    <div style={{
+                      position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: '#1e293b', color: '#fff',
+                      borderRadius: 8, padding: '8px 12px',
+                      fontSize: 12, width: 220, lineHeight: 1.5,
+                      zIndex: 100, whiteSpace: 'normal',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    }}>
+                      {s.ipucu}
+                    </div>
+                  )}
+                </span>
+              </div>
+              <p style={{ margin: '0 0 4px', fontSize: 12, color: 'var(--text-secondary)' }}>{s.alt}</p>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: s.renk }}>{s.aciklama}</p>
+            </div>
+            {i < siniflar.length - 1 && (
+              <div style={{ width: 1, background: 'var(--border-subtle)', alignSelf: 'stretch', margin: '4px 0' }} />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Yatay ayraç */}
+      <div style={{ height: 1, background: 'var(--border-subtle)', margin: '16px 0' }} />
+
+      {/* Alt: TCMB metrikleri */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 48, flexWrap: 'wrap' }}>
+        <TcmbMetrik etiket="TÜFE (Yıllık)"       deger={`%${tufe.toFixed(2)}`} />
+        <TcmbMetrik etiket="Azami Kredi Faizi"    deger={`%${azami.toFixed(2)}`} alt="/ay" />
+        <TcmbMetrik etiket="KFE (Konut)"          deger={`%${kfe.toFixed(2)}`} fallback={kfeFallback} />
+      </div>
+
+      <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 11, color: 'var(--text-tertiary)' }}>
+        Kaynak: TCMB EVDS API · Son güncelleme: {tarih}
+      </p>
+    </div>
+  )
+}
+
+function TcmbMetrik({ etiket, deger, alt, fallback }) {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {etiket}
+      </p>
+      <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
+        {deger}
+        {alt && <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 2 }}>{alt}</span>}
+        {fallback && <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 4 }}>(tahmini)</span>}
+      </p>
     </div>
   )
 }

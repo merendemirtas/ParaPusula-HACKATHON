@@ -12,6 +12,7 @@ import Dashboard from './components/Dashboard.jsx'
 import DebtMap from './components/DebtMap.jsx'
 import Expenses from './components/Expenses.jsx'
 import ChatAssistant from './components/ChatAssistant.jsx'
+import Simulator from './components/Simulator.jsx'
 
 // ─── Pusula SVG (inline, ölçeklenebilir) ───────────────────────
 function PusulaIcon({ size = 28 }) {
@@ -55,10 +56,11 @@ function HerkesAcikRota({ children }) {
 // ─── Nav linkler — tek kaynak ──────────────────────────────────
 // KARAR: PDF Yükle navdan kaldırıldı; Dashboard'da Upload Card ile erişiliyor.
 const NAV_LINKS = [
-  { yol: '/dashboard', etiket: 'Dashboard',    ikon: IconPano },
-  { yol: '/debt',      etiket: 'Borç Haritası', ikon: IconDebt },
-  { yol: '/expenses',  etiket: 'Harcamalar',   ikon: IconExpense },
-  { yol: '/chat',      etiket: 'Asistan',      ikon: IconChat },
+  { yol: '/dashboard',  etiket: 'Dashboard',    ikon: IconPano },
+  { yol: '/debt',       etiket: 'Borç Haritası', ikon: IconDebt },
+  { yol: '/expenses',   etiket: 'Harcamalar',   ikon: IconExpense },
+  { yol: '/simulator',  etiket: 'Simülatör',    ikon: IconSimulator },
+  { yol: '/chat',       etiket: 'Asistan',      ikon: IconChat },
 ]
 
 function IconPano({ size = 20 }) {
@@ -92,6 +94,13 @@ function IconExpense({ size = 20 }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 3v18h18" />
       <path d="M7 15l4-4 4 4 5-6" />
+    </svg>
+  )
+}
+function IconSimulator({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
     </svg>
   )
 }
@@ -303,6 +312,7 @@ function AppIcerik() {
           <Route path="/upload"    element={<KorunanRota><SayfaWrapper><UploadPDF /></SayfaWrapper></KorunanRota>} />
           <Route path="/debt"      element={<KorunanRota><SayfaWrapper><DebtMap /></SayfaWrapper></KorunanRota>} />
           <Route path="/expenses"  element={<KorunanRota><SayfaWrapper><Expenses /></SayfaWrapper></KorunanRota>} />
+          <Route path="/simulator" element={<KorunanRota><SayfaWrapper><Simulator /></SayfaWrapper></KorunanRota>} />
           <Route path="/chat"      element={<KorunanRota><SayfaWrapper><ChatAssistant /></SayfaWrapper></KorunanRota>} />
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />

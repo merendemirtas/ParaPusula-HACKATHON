@@ -151,6 +151,15 @@ export async function recalculate(userId) {
 }
 
 /**
+ * Mevcut borçları güncel sınıflandırma kurallarıyla yeniden analiz eder.
+ * PDF yüklemeden, Gemini çağrısı olmadan çalışır — hızlı güncelleme.
+ */
+export async function reanalyze(userId) {
+  const yanit = await api.post(`/reanalyze/${userId}`)
+  return yanit.data
+}
+
+/**
  * Bu ay ve geçen ay arasındaki finansal farkları döndürür.
  * @param {string} userId
  * @returns {Promise<Object>} - {bu_ay, onceki_ay, delta}
@@ -179,6 +188,113 @@ export async function getSubscriptionRatings(userId) {
  */
 export async function saveSubscriptionRating(userId, adi, puan, tutar) {
   const yanit = await api.post(`/subscriptions/${userId}`, { adi, puan, tutar })
+  return yanit.data
+}
+
+// ─────────────────────────────────────────────
+// Gider Trendi
+// ─────────────────────────────────────────────
+
+/**
+ * Son 6 ayın gider/gelir trendini döndürür (line chart için).
+ * @param {string} userId
+ */
+export async function getGiderTrend(userId) {
+  const yanit = await api.get(`/snapshots/${userId}/trend`)
+  return yanit.data
+}
+
+// ─────────────────────────────────────────────
+// Birikim Hedefleri
+// ─────────────────────────────────────────────
+
+/**
+ * Kullanıcının tüm birikim hedeflerini listeler.
+ */
+export async function getGoals(userId) {
+  const yanit = await api.get(`/goals/${userId}`)
+  return yanit.data
+}
+
+/**
+ * Yeni birikim hedefi oluşturur.
+ * @param {string} userId
+ * @param {Object} data - { ad, hedef_tutar }
+ */
+export async function createGoal(userId, data) {
+  const yanit = await api.post(`/goals/${userId}`, data)
+  return yanit.data
+}
+
+/**
+ * Birikim hedefini günceller (ad, tutar, açıklama, fotoğraf).
+ * @param {string} userId
+ * @param {string} hedefId
+ * @param {Object} data - { ad?, hedef_tutar?, aciklama?, fotograf_url? }
+ */
+export async function updateGoal(userId, hedefId, data) {
+  const yanit = await api.put(`/goals/${userId}/${hedefId}`, data)
+  return yanit.data
+}
+
+/**
+ * Birikim hedefini siler.
+ */
+export async function deleteGoal(userId, hedefId) {
+  const yanit = await api.delete(`/goals/${userId}/${hedefId}`)
+  return yanit.data
+}
+
+/**
+ * Hedefe aylık birikim ekler.
+ * @param {string} userId
+ * @param {string} hedefId
+ * @param {Object} data - { tutar, ay? }
+ */
+export async function addBirikim(userId, hedefId, data) {
+  const yanit = await api.post(`/goals/${userId}/${hedefId}/birikim`, data)
+  return yanit.data
+}
+
+/**
+ * TCMB verisini Firestore cache'den döndürür (24s TTL, cache öncelikli).
+ * @returns {Promise<Object>} - { tufe, kfe, azami_faiz, guncelleme_tarihi }
+ */
+export async function getTCMBLatest() {
+  const yanit = await api.get('/tcmb/latest')
+  return yanit.data
+}
+
+/**
+ * Borca manuel faiz oranı kaydeder ve snapshot'ı günceller.
+ * @param {string} userId
+ * @param {string} borcAdi - Borç açıklaması (snapshot'taki aciklama alanı)
+ * @param {number} faizYillik - Yıllık faiz % (örn: 42.5)
+ */
+export async function updateBorcFaiz(userId, borcAdi, faizYillik) {
+  const yanit = await api.put(`/borc-faiz/${userId}`, { borc_adi: borcAdi, faiz_yillik: faizYillik })
+  return yanit.data
+}
+
+// ─────────────────────────────────────────────
+// Simülatör
+// ─────────────────────────────────────────────
+
+/**
+ * Borç ödeme hızlandırma simülasyonu.
+ * @param {Object} data - {ana_para, aylik_odeme, faiz_orani_yillik, ekstra_odeme, borc_adi}
+ */
+export async function simulatorBorcHizlandirma(data) {
+  const yanit = await api.post('/simulator/borc-hizlandirma', data)
+  return yanit.data
+}
+
+/**
+ * Büyük karar Gemini simülasyonu.
+ * @param {Object} data - {user_id, soru}
+ */
+export async function simulatorBuyukKarar(data) {
+  const yanit = await api.post('/simulator/buyuk-karar', data)
   return yanit.data
 }
 

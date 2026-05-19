@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Router'ları import et
-from routers import upload, analysis, chat, tcmb, onboarding
+from routers import upload, analysis, chat, tcmb, onboarding, goals, simulator
+from services.tcmb_service import test_tcmb_connection
 
 # Geçici dosya dizini
 TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
@@ -54,6 +55,9 @@ async def lifespan(_app: FastAPI):
         print(f"  Gemini API Key: {'*' * 8}{gemini_key[-4:]}")
     else:
         print("  UYARI: GEMINI_API_KEY tanimlanmamis!")
+
+    # TCMB API bağlantısını test et
+    await test_tcmb_connection()
 
     print("="*50)
     print("  ParaPusula API hazir!")
@@ -109,6 +113,8 @@ app.include_router(upload.router, prefix="/api", tags=["PDF Yukleme"])
 app.include_router(analysis.router, prefix="/api", tags=["Analiz"])
 app.include_router(chat.router, prefix="/api", tags=["Sohbet"])
 app.include_router(tcmb.router, prefix="/api", tags=["TCMB"])
+app.include_router(goals.router, prefix="/api", tags=["Birikim Hedefleri"])
+app.include_router(simulator.router, prefix="/api", tags=["Simülatör"])
 
 
 # ─────────────────────────────────────────────

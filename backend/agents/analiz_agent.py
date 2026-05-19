@@ -88,64 +88,82 @@ def finansal_skor_hesapla(
 
 def borc_siniflandir(
     aciklama: str,
-    aylik_odeme: float,
-    tcmb: dict
+    tcmb: dict,
+    faiz_manuel: float | None = None,
 ) -> dict:
     """
     Borç kalemini TCMB verisiyle sınıflandırır.
 
-    Kural:
-    - Açıklamada "konut" / "mortgage" / "ev kredisi" geçiyorsa:
-        faiz tahmini < KFE ise "stratejik", değilse "gri"
-    - Diğerleri:
-        azami_faiz * 0.8 eşiğini aştığı tahmin ediliyorsa "kotu", değilse "gri"
-
-    # KARAR: Gerçek faiz oranı ekstreden çıkarılamadığından
-    # açıklama içeriğine ve aylık ödeme büyüklüğüne göre kaba tahmin yapıyoruz.
+    faiz_manuel verilmişse: TÜFE/KFE karşılaştırması yapılır, faiz_orani = faiz_manuel.
+    faiz_manuel yoksa   : Keyword bazlı siniflandirma yapılır, faiz_orani = None
+                          (PDF'ten faiz çıkarılamaz; kullanıcı manuel girmeli).
     """
-    azami_faiz = tcmb.get("azami_faiz", 4.5)
+    tufe = float(tcmb.get("tufe", 30.65))
+    kfe  = float(tcmb.get("kfe",  34.0))
 
-    aciklama_kucuk = aciklama.lower()
+    # KARAR: Python .lower() Türkçe büyük İ'yi "i̇" (birleşik) yapar;
+    # standart "i" keyword'leriyle eşleşmez. Explicit replace ile normalize.
+    aciklama_kucuk = (
+        aciklama
+        .replace('İ', 'i').replace('I', 'i')
+        .replace('Ş', 'ş').replace('Ğ', 'ğ')
+        .replace('Ü', 'ü').replace('Ö', 'ö').replace('Ç', 'ç')
+        .lower()
+    )
 
-    # Konut / mortgage kredisi — stratejik borç adayı
-    konut_anahtar = [
-        "konut", "mortgage", "ev kredisi", "housing", "mesken",
-        "konut kr", "konut krd", "housing loan"
-    ]
+    konut_anahtar   = ["konut", "mortgage", "ev kredisi", "housing", "mesken",
+                        "konut kr", "konut krd", "housing loan"]
+    kritik_sabit    = ["kredi karti", "kredi kartı", "credit card", "nakit avans",
+                       "kk borç", "kk borc", "kart borç", "kart borc", "avans",
+                       "esnaf", "ticari", "işyeri", "isyeri"]
+    tuketici_anahtar = ["tuketici", "tüketici"]
+    tasit_anahtar    = ["tasit", "taşıt", "arac", "araç", "otomobil", "vehicle", "auto"]
+    ihtiyac_anahtar  = ["ihtiyac", "ihtiyaç", "bireysel", "personal", "taksit"]
+
+    # ── Manuel faiz girilmişse: TÜFE/KFE karşılaştırması ─────
+    if faiz_manuel is not None:
+        faiz = float(faiz_manuel)
+        is_konut = any(k in aciklama_kucuk for k in konut_anahtar)
+        if is_konut and faiz < kfe:
+            return {
+                "siniflandirma": "stratejik",
+                "faiz_orani": faiz,
+                "aciklama_detay": (
+                    f"Eviniz yıllık %{kfe:.1f} değerleniyor, "
+                    f"kredinizin faizi %{faiz:.0f} — değer yaratan borç"
+                ),
+            }
+        if faiz < tufe:
+            return {"siniflandirma": "yonetilebilir", "faiz_orani": faiz,
+                    "aciklama_detay": "Enflasyon borcunuzu eritiyor — ödeme planına devam et"}
+        return {"siniflandirma": "kritik", "faiz_orani": faiz,
+                "aciklama_detay": "Faiz enflasyonun üzerinde — öncelikli öde"}
+
+    # ── Manuel faiz yok: keyword bazlı, faiz_orani = None ────
+    # KARAR: PDF'ten faiz çıkarılamaz; tahmini değer göstermek yanıltıcı.
+    # Sınıflandırma keyword'den, faiz_orani kullanıcı girinceye kadar None.
     if any(k in aciklama_kucuk for k in konut_anahtar):
-        # Konut kredisi faiz < KFE ise değer yaratan borç → stratejik
-        if aylik_odeme < 15000:
-            return {"siniflandirma": "stratejik", "faiz_orani": 2.5}
-        else:
-            return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.5}
+        return {"siniflandirma": "stratejik", "faiz_orani": None,
+                "aciklama_detay": "Değer yaratan borç — faiz oranını girerek kesin analiz yapın"}
 
-    # Kredi kartı / nakit avans / yüksek faizli tüketici — kritik borç
-    kritik_anahtar = [
-        "kredi karti", "kredi kartı", "credit card", "nakit avans",
-        "tuketici", "tüketici", "kk borç", "kk borc",
-        "kart borç", "kart borc", "limit", "avans"
-    ]
-    if any(k in aciklama_kucuk for k in kritik_anahtar):
-        return {"siniflandirma": "kritik", "faiz_orani": azami_faiz}
+    if any(k in aciklama_kucuk for k in kritik_sabit):
+        return {"siniflandirma": "kritik", "faiz_orani": None,
+                "aciklama_detay": "Öncelikli öde — faiz oranını girerek simülatörü kullanın"}
 
-    # Taşıt / araç kredisi — yönetilebilir borç
-    tasit_anahtar = [
-        "tasit", "taşıt", "arac", "araç", "otomobil", "vehicle", "auto"
-    ]
+    if any(k in aciklama_kucuk for k in tuketici_anahtar):
+        return {"siniflandirma": "kritik", "faiz_orani": None,
+                "aciklama_detay": "Öncelikli öde — faiz oranını girerek simülatörü kullanın"}
+
     if any(k in aciklama_kucuk for k in tasit_anahtar):
-        return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.8}
+        return {"siniflandirma": "kritik", "faiz_orani": None,
+                "aciklama_detay": "Faiz kontrolü gerekli — oranı girerek simülatörü kullanın"}
 
-    # İhtiyaç kredisi — yüksek ödemeyse kritik, değilse yönetilebilir
-    ihtiyac_anahtar = [
-        "ihtiyac", "ihtiyaç", "bireysel", "personal", "taksit"
-    ]
     if any(k in aciklama_kucuk for k in ihtiyac_anahtar):
-        if aylik_odeme > 5000:
-            return {"siniflandirma": "kritik", "faiz_orani": azami_faiz}
-        return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.5}
+        return {"siniflandirma": "kritik", "faiz_orani": None,
+                "aciklama_detay": "Faiz kontrolü gerekli — oranı girerek simülatörü kullanın"}
 
-    # Varsayılan: yönetilebilir borç
-    return {"siniflandirma": "yonetilebilir", "faiz_orani": 3.0}
+    return {"siniflandirma": "yonetilebilir", "faiz_orani": None,
+            "aciklama_detay": "Kontrol altında — faiz oranını girerek simülatörü kullanın"}
 
 
 def borc_cikis_plani_hesapla(
@@ -178,19 +196,56 @@ def borc_cikis_plani_hesapla(
                 "aylik_ekstra_odeme": aylik_ekstra_odeme,
                 "tahmini_bitis_ay": "", "adimlar": []}
 
-    # Borçları kopyala (orijinali bozmadan) ve faiz oranına göre büyükten küçüğe sırala
-    # KARAR: faiz_orani YILLIK yüzde olarak saklanır (DebtMap UI'da "%X yıllık" görünür).
-    # Aylık faiz = yıllık / 12 / 100  (örn: %4.5 yıllık → 0.00375 aylık)
+    # KARAR: Hibrit önceliklendirme — saf Avalanche yerine 4 faktörlü skor.
+    # faiz_orani YILLIK yüzde (aylık = yıllık/12/100).
+    sinif_skoru = {"kritik": 100, "kotu": 100, "yonetilebilir": 50, "gri": 50, "stratejik": 10}
+
+    # KARAR: faiz_orani None ise sinif bazlı tahmin kullan — sadece sıralama için,
+    # kullanıcıya gösterilmez. Kullanıcı manuel girene kadar simülatör çalışmaz.
+    _SINIF_TAHMINI = {"kritik": 55.0, "kotu": 55.0, "yonetilebilir": 36.0, "gri": 36.0, "stratejik": 30.0}
+
+    def _faiz_al(b):
+        f = b.get("faiz_orani")
+        if f is None or f == 0:
+            return _SINIF_TAHMINI.get(b.get("siniflandirma", "yonetilebilir"), 40.0)
+        return float(f)
+
+    tum_faizler  = [_faiz_al(b) for b in borc_listesi]
+    max_faiz     = max(tum_faizler) if tum_faizler else 1.0
+    toplam_gelir = float(borc_listesi[0].get("_aylik_gelir", 0)) if borc_listesi else 0
+
+    MAX_TAKSIT = 360  # 30 yıl konut kredisi üst sınırı
+
     borclar = []
     for b in borc_listesi:
-        yillik_yuzde = float(b.get("faiz_orani", 3.0))
+        yillik_yuzde   = _faiz_al(b)
+        aylik_faiz_ora = yillik_yuzde / 100.0 / 12.0
+        aylik_odeme    = float(b.get("aylik_odeme", 0))
+        kalan_taksit   = float(b.get("kalan_taksit", 24))
+        sinif          = b.get("siniflandirma", "yonetilebilir")
+
+        # ── 4 faktörlü öncelik skoru ──────────────────────
+        faiz_puani    = (yillik_yuzde / max_faiz) * 100 if max_faiz > 0 else 0
+        sinif_puani   = sinif_skoru.get(sinif, 50)
+        borc_gelir    = (aylik_odeme / toplam_gelir * 100) if toplam_gelir > 0 else 50
+        sure_puani    = (1 - kalan_taksit / MAX_TAKSIT) * 100
+
+        oncelik = (faiz_puani * 0.50) + (sinif_puani * 0.25) + (borc_gelir * 0.15) + (sure_puani * 0.10)
+
         borclar.append({
-            "aciklama": b.get("aciklama", "Borç"),
-            "kalan": float(b.get("ana_para", 0)),
-            "aylik_faiz_orani": yillik_yuzde / 100.0 / 12.0,  # yıllık % → aylık ondalık
-            "min_odeme": float(b.get("aylik_odeme", 0)),
+            "aciklama":         b.get("aciklama", "Borç"),
+            "kalan":            float(b.get("ana_para", 0)),
+            "aylik_faiz_orani": aylik_faiz_ora,
+            "min_odeme":        aylik_odeme,
+            "oncelik_skoru":    round(oncelik, 2),
+            "oncelik_gerekcesi": (
+                f"Faiz:{faiz_puani:.0f}×0.50 + Sınıf:{sinif_puani}×0.25 + "
+                f"Borç/Gelir:{borc_gelir:.0f}×0.15 + Süre:{sure_puani:.0f}×0.10"
+            ),
         })
-    borclar.sort(key=lambda x: x["aylik_faiz_orani"], reverse=True)
+
+    # Hibrit skora göre sırala (yüksek → düşük)
+    borclar.sort(key=lambda x: x["oncelik_skoru"], reverse=True)
 
     toplam_borc_baslangic = sum(b["kalan"] for b in borclar)
     serbest_ekstra = float(aylik_ekstra_odeme)  # Biten borçların min ödemesi buraya eklenir
@@ -244,9 +299,9 @@ def borc_cikis_plani_hesapla(
         toplam_kalan = sum(max(0, b["kalan"]) for b in borclar)
 
         adimlar.append({
-            "ay": ay_str,
+            "ay":           ay_str,
             "odeme_tutari": round(ay_toplam_odeme, 2),
-            "kalan_borc": round(toplam_kalan, 2),
+            "kalan_borc":   round(toplam_kalan, 2),
             "bitecek_borc": bitecek_borc_adi or "",
         })
 
@@ -255,12 +310,20 @@ def borc_cikis_plani_hesapla(
 
     bitis_ay = adimlar[-1]["ay"] if adimlar else ""
 
+    # Öncelik sıralamasını raporla
+    siralama = [
+        {"aciklama": b["aciklama"][:40], "oncelik_skoru": b["oncelik_skoru"],
+         "gerekce": b["oncelik_gerekcesi"]}
+        for b in borclar
+    ]
+
     return {
-        "yontem": "avalanche",
-        "toplam_borc": round(toplam_borc_baslangic, 2),
+        "yontem":             "hibrit_avalanche",
+        "toplam_borc":        round(toplam_borc_baslangic, 2),
         "aylik_ekstra_odeme": float(aylik_ekstra_odeme),
-        "tahmini_bitis_ay": bitis_ay,
-        "adimlar": adimlar,
+        "tahmini_bitis_ay":   bitis_ay,
+        "adimlar":            adimlar,
+        "oncelik_sirasi":     siralama,   # Debug/UI için
     }
 
 
@@ -293,6 +356,13 @@ async def analiz_agent_node(state: PipelineState) -> PipelineState:
             else:
                 toplam_gider += abs(tutar)
 
+        # ── Kullanıcının manuel faiz girişlerini Firestore'dan çek ──
+        borc_detaylari: dict = {}
+        try:
+            borc_detaylari = await firebase_service.borc_detaylari_oku(user_id)
+        except Exception:
+            pass  # Yoksa keyword bazlı sınıflandırmayla devam
+
         # ── Borç listesini tespit et ve sınıflandır ───────────────
         borc_kategori_anahtar = [
             "kredi", "borç", "taksit", "kredi kartı",
@@ -306,13 +376,19 @@ async def analiz_agent_node(state: PipelineState) -> PipelineState:
                 for islem in kategori.get("islemler", []):
                     aylik = abs(float(islem.get("tutar", 0)))
                     if aylik > 0:
+                        aciklama = islem.get("aciklama", "")
+                        # Öncelik: 1) Firestore manuel giriş  2) PDF'ten çıkarılan faiz  3) None
+                        faiz_manuel = (
+                            borc_detaylari.get(aciklama)
+                            or islem.get("faiz_orani")
+                        )
                         sinif_bilgi = borc_siniflandir(
-                            aciklama=islem.get("aciklama", ""),
-                            aylik_odeme=aylik,
-                            tcmb=tcmb_verisi
+                            aciklama=aciklama,
+                            tcmb=tcmb_verisi,
+                            faiz_manuel=faiz_manuel,
                         )
                         borc_listesi_raw.append({
-                            "aciklama": islem.get("aciklama", "Borç Ödemesi"),
+                            "aciklama": aciklama or "Borç Ödemesi",
                             # KARAR: Ana para tahmini = aylık ödeme × 24 ay
                             "ana_para": aylik * 24,
                             "faiz_orani": sinif_bilgi["faiz_orani"],

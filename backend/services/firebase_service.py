@@ -251,6 +251,116 @@ class FirebaseService:
         except Exception as e:
             raise RuntimeError(f"Abonelik puanı kaydetme hatası: {e}")
 
+    # ─────────────────────────────────────────────
+    # Birikim Hedefi İşlemleri
+    # ─────────────────────────────────────────────
+
+    async def hedef_listesi_oku(self, user_id: str) -> list:
+        """
+        Kullanıcının tüm birikim hedeflerini okur.
+        Yol: users/{userId}/goals/
+        """
+        try:
+            def _oku():
+                docs = self.db.collection("users").document(user_id)\
+                    .collection("goals").stream()
+                return [{"id": doc.id, **doc.to_dict()} for doc in docs]
+
+            return await asyncio.to_thread(_oku)
+        except Exception as e:
+            raise RuntimeError(f"Hedef listesi okuma hatası: {e}")
+
+    async def hedef_kaydet(self, user_id: str, hedef: dict) -> str:
+        """
+        Yeni birikim hedefi oluşturur. Firestore auto-id döndürür.
+        Yol: users/{userId}/goals/{autoId}
+        """
+        try:
+            veri = {
+                "ad":           hedef.get("ad", "Hedef"),
+                "hedef_tutar":  float(hedef.get("hedef_tutar", 0)),
+                "aciklama":     hedef.get("aciklama", ""),
+                "fotograf_url": hedef.get("fotograf_url", ""),
+                "birikimler":   [],
+                "toplam_birikim": 0.0,
+                "olusturma_tarihi": datetime.now().isoformat(),
+            }
+
+            def _kaydet():
+                ref = self.db.collection("users").document(user_id)\
+                    .collection("goals").add(veri)
+                return ref[1].id  # add() → (timestamp, ref)
+
+            return await asyncio.to_thread(_kaydet)
+        except Exception as e:
+            raise RuntimeError(f"Hedef kaydetme hatası: {e}")
+
+    async def hedef_guncelle(self, user_id: str, hedef_id: str, guncellemeler: dict) -> None:
+        """
+        Hedefin ad/tutar/açıklama/fotoğraf alanlarını günceller.
+        birikimler ve toplam_birikim alanlarına dokunmaz.
+        """
+        try:
+            izin_verilen = {"ad", "hedef_tutar", "aciklama", "fotograf_url"}
+            temiz = {k: v for k, v in guncellemeler.items() if k in izin_verilen}
+            if not temiz:
+                return
+
+            def _guncelle():
+                self.db.collection("users").document(user_id)\
+                    .collection("goals").document(hedef_id).update(temiz)
+
+            await asyncio.to_thread(_guncelle)
+        except Exception as e:
+            raise RuntimeError(f"Hedef güncelleme hatası: {e}")
+
+    async def hedef_sil(self, user_id: str, hedef_id: str) -> None:
+        """Birikim hedefini Firestore'dan siler."""
+        try:
+            def _sil():
+                self.db.collection("users").document(user_id)\
+                    .collection("goals").document(hedef_id).delete()
+
+            await asyncio.to_thread(_sil)
+        except Exception as e:
+            raise RuntimeError(f"Hedef silme hatası: {e}")
+
+    async def birikim_ekle(
+        self, user_id: str, hedef_id: str, ay: str, tutar: float
+    ) -> None:
+        """
+        Hedefe aylık birikim ekler veya aynı ayın üzerine yazar.
+        Toplam_birikim otomatik güncellenir.
+        Yol: users/{userId}/goals/{hedefId}
+        """
+        try:
+            def _guncelle():
+                ref = self.db.collection("users").document(user_id)\
+                    .collection("goals").document(hedef_id)
+                doc = ref.get()
+                if not doc.exists:
+                    raise ValueError(f"Hedef bulunamadı: {hedef_id}")
+
+                mevcut = doc.to_dict()
+                birikimler = list(mevcut.get("birikimler", []))
+
+                # Aynı ay varsa üzerine yaz
+                ay_var = False
+                for i, b in enumerate(birikimler):
+                    if b.get("ay") == ay:
+                        birikimler[i] = {"ay": ay, "tutar": tutar}
+                        ay_var = True
+                        break
+                if not ay_var:
+                    birikimler.append({"ay": ay, "tutar": tutar})
+
+                toplam = sum(b["tutar"] for b in birikimler)
+                ref.update({"birikimler": birikimler, "toplam_birikim": toplam})
+
+            await asyncio.to_thread(_guncelle)
+        except Exception as e:
+            raise RuntimeError(f"Birikim ekleme hatası: {e}")
+
     async def abonelik_puanlari_oku(self, user_id: str) -> dict:
         """
         Kullanıcının tüm abonelik puanlarını okur.
@@ -291,6 +401,42 @@ class FirebaseService:
             await asyncio.to_thread(_guncelle)
         except Exception as e:
             raise RuntimeError(f"Snapshot güncelleme hatası: {e}")
+
+    # ─────────────────────────────────────────────
+    # Borç Faiz Oranı (Manuel Giriş)
+    # ─────────────────────────────────────────────
+
+    @staticmethod
+    def _borc_doc_id(borc_adi: str) -> str:
+        """Firestore doc ID için '/' karakterini '_' ile değiştir, 100 char sınırla."""
+        return borc_adi.replace("/", "_").strip()[:100]
+
+    async def borc_faiz_kaydet(self, user_id: str, borc_adi: str, faiz_yillik: float) -> None:
+        """users/{userId}/borc_detaylari/{borc_adi} → {faiz_yillik}"""
+        try:
+            doc_id = self._borc_doc_id(borc_adi)
+            def _yaz():
+                self.db.collection("users").document(user_id)\
+                    .collection("borc_detaylari").document(doc_id)\
+                    .set({"borc_adi": borc_adi, "faiz_yillik": faiz_yillik}, merge=True)
+            await asyncio.to_thread(_yaz)
+        except Exception as e:
+            raise RuntimeError(f"Borç faiz kaydetme hatası: {e}")
+
+    async def borc_detaylari_oku(self, user_id: str) -> dict:
+        """
+        Kullanıcının tüm manuel faiz oranlarını döndürür.
+        Döner: {borc_adi: faiz_yillik, ...}
+        """
+        try:
+            def _oku():
+                docs = self.db.collection("users").document(user_id)\
+                    .collection("borc_detaylari").stream()
+                return {d.to_dict().get("borc_adi", d.id): d.to_dict().get("faiz_yillik")
+                        for d in docs}
+            return await asyncio.to_thread(_oku)
+        except Exception:
+            return {}
 
     # ─────────────────────────────────────────────
     # TCMB Cache İşlemleri

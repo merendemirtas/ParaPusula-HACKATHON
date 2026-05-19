@@ -31,6 +31,19 @@ async def tcmb_verisi_yenile():
         )
 
 
+@router.get("/tcmb/latest", response_model=TCMBData)
+async def tcmb_son_veri():
+    """
+    Firestore cache'deki TCMB verisini döndürür (cache öncelikli, 24s TTL).
+    /tcmb/current ile aynı davranış — frontend için kısa alias.
+    """
+    try:
+        veri = await tcmb_service.tcmb_verisi_getir(firebase_service)
+        return veri
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TCMB verisi getirilemedi: {e}")
+
+
 @router.get("/tcmb/current", response_model=TCMBData)
 async def tcmb_mevcut_veri():
     """

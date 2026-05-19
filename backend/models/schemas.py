@@ -69,16 +69,17 @@ class Transaction(BaseModel):
     banka: str                          # "Ziraat" veya "Halkbank"
     tur: str                            # "gelir" veya "gider"
     kategori: Optional[str] = None      # Kategorizasyon sonrası dolar
+    faiz_orani: Optional[float] = None  # PDF açıklamasında yazıyorsa yıllık %
 
 
 class DebtItem(BaseModel):
     """Tek bir borç kalemi"""
     aciklama: str
     ana_para: float
-    faiz_orani: float                   # Yıllık yüzde olarak
+    faiz_orani: Optional[float] = None  # Yıllık % — manuel girilmemişse None
     kalan_taksit: int
     aylik_odeme: float
-    siniflandirma: str                  # "stratejik" | "gri" | "kotu"
+    siniflandirma: str                  # "stratejik" | "yonetilebilir" | "kritik"
 
 
 class Category(BaseModel):
