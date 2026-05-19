@@ -115,6 +115,8 @@ function Tab1Hizlandirma({ userId }) {
   const [yukOk, setYukOk]           = useState(false)
   const [seciliIndex, setSeciliIdx] = useState(null)
   const [ekstra, setEkstra]         = useState(1000)
+  const [yzOneri, setYzOneri]       = useState(null)  // { tasarruf, nakit, net }
+  const [simYontem, setSimYontem]   = useState('avalanche') // borç seçim sıralaması
   const [sonuc, setSonuc]           = useState(null)
   const [hesaplaniyor, setHesap]    = useState(false)
   const [hata, setHata]             = useState('')
@@ -124,11 +126,30 @@ function Tab1Hizlandirma({ userId }) {
   useEffect(() => {
     if (!userId) return
     getAnalysis(userId)
-      .then(d => { setAnaliz(d); setYukOk(true) })
+      .then(d => {
+        setAnaliz(d)
+        // ekstra_odeme_onerisi varsa slider/input'u bununla başlat
+        const onerilen = d?.ekstra_odeme_onerisi
+        if (onerilen && onerilen > 0) {
+          setEkstra(Math.round(onerilen))
+          setYzOneri({
+            tasarruf: d?.toplam_tasarruf_onerisi || 0,
+            nakit:    d?.nakit_akisi || 0,
+            net:      onerilen,
+          })
+        }
+        setYukOk(true)
+      })
       .catch(() => setYukOk(true))
   }, [userId])
 
-  const borcListesi = analiz?.borc_listesi || []
+  const hamBorcListesi = analiz?.borc_listesi || []
+  // Seçilen yönteme göre borçları sırala — Avalanche: yüksek faiz, Snowball: küçük ana para
+  const borcListesi = [...hamBorcListesi].sort((a, b) =>
+    simYontem === 'snowball'
+      ? (a.ana_para || 0) - (b.ana_para || 0)
+      : (b.faiz_orani || 0) - (a.faiz_orani || 0)
+  )
   const aylikGelir  = analiz?.gelir || 0
   const sliderMax   = Math.max(5000, Math.round(aylikGelir * 0.30 / 500) * 500)
   const secili      = seciliIndex !== null ? borcListesi[seciliIndex] : null
@@ -192,7 +213,35 @@ function Tab1Hizlandirma({ userId }) {
     <div>
       {/* Girdi paneli */}
       <div className="card" style={{ padding: 28, marginBottom: 24 }}>
-        <h2 className="heading-sm" style={{ marginBottom: 20 }}>Borç Seçimi</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+          <h2 className="heading-sm" style={{ margin: 0 }}>Borç Seçimi</h2>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[
+              { key: 'avalanche', etiket: '⚡ Avalanche' },
+              { key: 'snowball',  etiket: '⛄ Snowball' },
+            ].map(y => (
+              <button
+                key={y.key}
+                onClick={() => { setSimYontem(y.key); setSeciliIdx(null); setSonuc(null) }}
+                style={{
+                  padding: '6px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12,
+                  border: simYontem === y.key ? '2px solid var(--color-primary)' : '2px solid var(--border-default)',
+                  background: simYontem === y.key ? 'var(--color-primary-light)' : 'var(--bg-card)',
+                  color: simYontem === y.key ? 'var(--color-primary-dark)' : 'var(--text-secondary)',
+                  fontWeight: simYontem === y.key ? 700 : 500,
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 150ms ease',
+                }}
+              >
+                {y.etiket}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 11, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+          {simYontem === 'avalanche'
+            ? '⚡ Avalanche: En yüksek faizli borç en üstte — toplam faiz tasarrufu maksimum'
+            : '⛄ Snowball: En küçük borç en üstte — hızlı motivasyon, kolay başlangıç'}
+        </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
           {borcListesi.map((borc, i) => {
             const sinif = SINIF_BADGE[borc.siniflandirma] || SINIF_BADGE.yonetilebilir
@@ -258,10 +307,42 @@ function Tab1Hizlandirma({ userId }) {
           onChange={e => setEkstra(Number(e.target.value))}
           style={{ width: '100%', accentColor: 'var(--color-primary)', marginBottom: 6 }}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
           <span className="text-tiny">500 ₺</span>
           <span className="text-tiny">{para(sliderMax)} (gelirin %30'u)</span>
         </div>
+        {/* ── YZ Öneri Kutusu (hesaplamadan önce) ─────── */}
+        {yzOneri && yzOneri.net > 0 && (
+          <div style={{
+            marginTop: 14,
+            padding: '14px 16px',
+            background: 'var(--color-positive-light)',
+            border: '1px solid var(--color-positive)',
+            borderRadius: 10,
+          }}>
+            <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: 'var(--color-primary-dark)' }}>
+              💡 Sizin için hesaplandı
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--color-primary-dark)' }}>
+                <span>Önerilen tasarruf</span>
+                <span style={{ fontWeight: 600 }}>{para(yzOneri.tasarruf)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--color-primary-dark)' }}>
+                <span>Ay sonu nakit akışı</span>
+                <span style={{ fontWeight: 600 }}>{yzOneri.nakit >= 0 ? '+' : ''}{para(yzOneri.nakit)}</span>
+              </div>
+              <div style={{ borderTop: `1px solid var(--color-primary)`, margin: '4px 0', opacity: 0.3 }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--color-primary-dark)' }}>
+                <span style={{ fontWeight: 700 }}>Önerilen ekstra ödeme</span>
+                <span style={{ fontWeight: 700 }}>{para(yzOneri.net)}</span>
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--color-primary)', fontStyle: 'italic' }}>
+                (Bu tutar sizin için otomatik girildi)
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Faiz bilinmiyorsa uyarı */}
         {secili && !secili.faiz_orani && (
@@ -417,6 +498,49 @@ function Tab1Hizlandirma({ userId }) {
               </button>
             )}
           </div>
+
+          {/* ── YZ Önerisi Sonuç Kutusu ──────────────── */}
+          {yzOneri && yzOneri.net > 0 && (
+            <div style={{
+              border: '2px solid var(--color-positive)',
+              borderRadius: 14,
+              padding: '22px 26px',
+              background: 'var(--color-positive-light)',
+              marginBottom: 20,
+            }}>
+              <p style={{ margin: '0 0 16px', fontSize: 13, fontWeight: 700, color: 'var(--color-primary-dark)', letterSpacing: '.03em' }}>
+                🤖 Yapay Zeka Önerisi Uygulanırsa
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                  <span style={{ color: 'var(--color-primary-dark)' }}>Önerilen tasarruf</span>
+                  <strong style={{ color: 'var(--color-primary)' }}>{para(yzOneri.tasarruf)} / ay</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                  <span style={{ color: 'var(--color-primary-dark)' }}>Ay sonu nakit akışı</span>
+                  <strong style={{ color: yzOneri.nakit >= 0 ? 'var(--color-primary)' : 'var(--color-negative)' }}>
+                    {yzOneri.nakit >= 0 ? '+' : ''}{para(yzOneri.nakit)}
+                  </strong>
+                </div>
+                <div style={{ borderTop: '1px solid var(--color-primary)', opacity: 0.3 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
+                  <strong style={{ color: 'var(--color-primary-dark)' }}>Aylık ekstra ödeme</strong>
+                  <strong style={{ color: 'var(--color-primary)', fontSize: 17 }}>{para(yzOneri.net)}</strong>
+                </div>
+              </div>
+              {sonuc.ay_farki > 0 && (
+                <div style={{ padding: '12px 16px', background: 'rgba(53,107,89,0.12)', borderRadius: 8 }}>
+                  <p style={{ margin: 0, fontSize: 14, color: 'var(--color-primary-dark)', lineHeight: 1.6 }}>
+                    <strong>{secili?.aciklama}</strong> borcunu{' '}
+                    <strong style={{ color: 'var(--color-primary)' }}>{sonuc.ay_farki} ay</strong> erken kapatırsın.
+                    <br />
+                    Toplam faiz tasarrufu:{' '}
+                    <strong style={{ color: 'var(--color-primary)' }}>{para(sonuc.tasarruf)} 🎉</strong>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Gemini yorumu */}
           {sonuc.gemini_yorum && (

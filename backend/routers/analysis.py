@@ -32,7 +32,7 @@ async def kullanici_analizi_getir(user_id: str):
         # (oneriler, borc_cikis_plani gibi ekstra alanlar için)
         sonuc = snapshot.model_dump()
 
-        # Ham Firestore'dan oneriler oku (model içinde varsa override etme)
+        # Ham Firestore'dan ekstra alanları oku (Pydantic model dışında kalanlar)
         try:
             ham = await firebase_service.snapshot_ham_oku(user_id, snapshot.ay)
             if ham:
@@ -40,6 +40,11 @@ async def kullanici_analizi_getir(user_id: str):
                     sonuc["oneriler"] = ham["oneriler"]
                 if ham.get("borc_cikis_plani"):
                     sonuc["borc_cikis_plani"] = ham["borc_cikis_plani"]
+                # Simülatör için tasarruf önerisi alanları
+                if ham.get("toplam_tasarruf_onerisi") is not None:
+                    sonuc["toplam_tasarruf_onerisi"] = ham["toplam_tasarruf_onerisi"]
+                if ham.get("ekstra_odeme_onerisi") is not None:
+                    sonuc["ekstra_odeme_onerisi"] = ham["ekstra_odeme_onerisi"]
         except Exception:
             pass  # Ham okuma başarısız olursa model verisiyle devam et
 
@@ -181,13 +186,25 @@ async def yeniden_hesapla(user_id: str):
         except Exception as oneri_hata:
             print(f"[RECALCULATE] Öneri üretme hatası (devam ediliyor): {oneri_hata}")
 
+        # Yeni önerilerden ekstra ödeme önerisini hesapla
+        nakit_akisi_rc = gelir - gider
+        toplam_tasarruf_rc = sum(
+            float(o.get("kazanim_tutari", 0) or 0) for o in oneriler
+        )
+        ekstra_odeme_rc = max(0.0, toplam_tasarruf_rc + nakit_akisi_rc)
+        print(f"[RECALCULATE] Tasarruf önerisi: {toplam_tasarruf_rc:,.0f} TL")
+        print(f"[RECALCULATE] Nakit akışı: {nakit_akisi_rc:,.0f} TL")
+        print(f"[RECALCULATE] Ekstra ödeme önerisi: {ekstra_odeme_rc:,.0f} TL")
+
         # ── Firestore'a yaz ────────────────────────────────────
         guncellemeler = {
-            "finansal_skor": yeni_skor,
-            "borc_listesi": yeni_borclar,
-            "oneriler": oneriler,
-            "borc_cikis_plani": borc_cikis_plani,
-            "yeniden_hesaplama_tarihi": datetime.now().isoformat()
+            "finansal_skor":             yeni_skor,
+            "borc_listesi":              yeni_borclar,
+            "oneriler":                  oneriler,
+            "borc_cikis_plani":          borc_cikis_plani,
+            "toplam_tasarruf_onerisi":   toplam_tasarruf_rc,
+            "ekstra_odeme_onerisi":      ekstra_odeme_rc,
+            "yeniden_hesaplama_tarihi":  datetime.now().isoformat()
         }
         await firebase_service.snapshot_guncelle(user_id, ay, guncellemeler)
         print(f"[RECALCULATE] Firestore güncellendi ✓")
@@ -388,10 +405,23 @@ async def yeniden_analiz_et(user_id: str):
             kategoriler=kategoriler,
         )
 
+        # Mevcut önerilerden ekstra ödeme önerisini yeniden hesapla
+        mevcut_oneriler = ham.get("oneriler", [])
+        nakit_akisi = gelir - gider
+        toplam_tasarruf_onerisi = sum(
+            float(o.get("kazanim_tutari", 0) or 0) for o in mevcut_oneriler
+        )
+        ekstra_odeme_onerisi = max(0.0, toplam_tasarruf_onerisi + nakit_akisi)
+        print(f"[REANALYZE] Tasarruf önerisi: {toplam_tasarruf_onerisi:,.0f} TL")
+        print(f"[REANALYZE] Nakit akışı: {nakit_akisi:,.0f} TL")
+        print(f"[REANALYZE] Ekstra ödeme önerisi: {ekstra_odeme_onerisi:,.0f} TL")
+
         await firebase_service.snapshot_guncelle(user_id, ay, {
-            "borc_listesi":         yeni_borclar,
-            "finansal_skor":        yeni_skor,
-            "yeniden_analiz_tarihi": datetime.now().isoformat(),
+            "borc_listesi":              yeni_borclar,
+            "finansal_skor":             yeni_skor,
+            "toplam_tasarruf_onerisi":   toplam_tasarruf_onerisi,
+            "ekstra_odeme_onerisi":      ekstra_odeme_onerisi,
+            "yeniden_analiz_tarihi":     datetime.now().isoformat(),
         })
 
         print(f"[REANALYZE] Tamamlandı — {len(degisimler)} borç sınıfı değişti, skor: {yeni_skor}")

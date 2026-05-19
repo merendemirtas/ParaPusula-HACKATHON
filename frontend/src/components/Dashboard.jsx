@@ -85,6 +85,7 @@ export default function Dashboard() {
   const [olusturModal, setOlusturModal] = useState(null)  // null | 'yeni' | hedefObj (düzenleme)
   const [birikimModal, setBirikimModal] = useState(false) // BirikimEkleModal
 
+  useEffect(() => { document.title = 'Ana Sayfa — ParaPusula' }, [])
   useEffect(() => { veriGetir() }, [userId])
 
   async function veriGetir() {
@@ -184,7 +185,7 @@ export default function Dashboard() {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 28 }}>
           <div>
-            <h1 className="heading-lg">Dashboard</h1>
+            <h1 className="heading-lg">Ana Sayfa</h1>
             <p className="text-body" style={{ marginTop: 4 }}>
               {analiz.ay} · {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>

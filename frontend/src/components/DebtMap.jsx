@@ -25,6 +25,67 @@ const SINIF = {
     badgeCls: 'badge-negative', barRenk: 'var(--color-negative)' },
 }
 
+// ─── Client-side borç planı hesaplayıcı ──────────────────────
+// KARAR: Backend planı her zaman Avalanche üretir. Snowball için frontend yeniden hesaplar.
+function hesaplaBorcPlani(borcListesi, ekstraOdeme, yontem, maxAy = 120) {
+  const aktif = borcListesi.filter(b => b.ana_para > 0 && b.aylik_odeme > 0)
+  if (!aktif.length) return { adimlar: [], toplam_faiz: 0 }
+
+  const borclar = aktif.map(b => ({
+    aciklama:    b.aciklama,
+    kalan:       b.ana_para,
+    aylik_faiz:  ((b.faiz_orani || 36) / 100) / 12,
+    min_odeme:   b.aylik_odeme,
+  }))
+
+  if (yontem === 'snowball') {
+    borclar.sort((a, b) => a.kalan - b.kalan)          // küçük ana paradan başla
+  } else {
+    borclar.sort((a, b) => b.aylik_faiz - a.aylik_faiz) // yüksek faizden başla
+  }
+
+  let serbest_ekstra = ekstraOdeme
+  let toplam_faiz = 0
+  const adimlar = []
+  const bugun = new Date()
+
+  for (let n = 0; n < maxAy; n++) {
+    const d = new Date(bugun.getFullYear(), bugun.getMonth() + n, 1)
+    const ay_str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    let ay_odeme = 0
+
+    for (const b of borclar) {
+      if (b.kalan <= 0) continue
+      const faiz = b.kalan * b.aylik_faiz
+      toplam_faiz += faiz
+      b.kalan += faiz
+      const odeme = Math.min(b.min_odeme, b.kalan)
+      b.kalan -= odeme
+      ay_odeme += odeme
+    }
+
+    let ekstra_kalan = serbest_ekstra
+    for (const b of borclar) {
+      if (b.kalan <= 0 || ekstra_kalan <= 0) continue
+      const uygula = Math.min(ekstra_kalan, b.kalan)
+      b.kalan -= uygula
+      ekstra_kalan -= uygula
+      ay_odeme += uygula
+      if (b.kalan <= 0.01) { serbest_ekstra += b.min_odeme; b.kalan = 0 }
+      break
+    }
+    for (const b of borclar) {
+      if (b.kalan > 0 && b.kalan <= 0.01) { serbest_ekstra += b.min_odeme; b.kalan = 0 }
+    }
+
+    const toplam_kalan = borclar.reduce((s, b) => s + Math.max(0, b.kalan), 0)
+    adimlar.push({ ay: ay_str, odeme_tutari: Math.round(ay_odeme), kalan_borc: Math.round(toplam_kalan) })
+    if (toplam_kalan <= 0.01) break
+  }
+
+  return { adimlar, toplam_faiz: Math.round(toplam_faiz) }
+}
+
 export default function DebtMap() {
   const navigate = useNavigate()
   const { kullanici } = useAuth()
@@ -36,6 +97,7 @@ export default function DebtMap() {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [hata, setHata] = useState('')
   const [planAcik, setPlanAcik] = useState(true)
+  const [planYontem, setPlanYontem] = useState('avalanche') // 'avalanche' | 'snowball'
   // editFaiz: { [index]: inputValue } — hangi kart edit modunda
   const [editFaiz, setEditFaiz] = useState({})
   const [savingFaiz, setSavingFaiz] = useState({})
@@ -341,107 +403,150 @@ export default function DebtMap() {
             </div>
 
             {/* Borç çıkış planı */}
-            {borcCikisPlan && (
-              <div className="card" style={{ padding: 28 }}>
-                <button
-                  onClick={() => setPlanAcik(!planAcik)}
-                  style={{
-                    width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    padding: 0, fontFamily: 'inherit', textAlign: 'left',
-                  }}
-                >
-                  <div>
-                    <p className="text-tiny" style={{ color: 'var(--color-primary)', marginBottom: 4 }}>STRATEJI</p>
-                    <h2 className="heading-sm">Borç Çıkış Planı</h2>
-                  </div>
-                  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                    style={{ transform: planAcik ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform var(--transition-base)' }}>
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
+            {borcListesi.length > 0 && (() => {
+              const ekstra = borcCikisPlan?.aylik_ekstra_odeme || 1000
+              const baslangic_borc = borcListesi.reduce((s, b) => s + b.ana_para, 0)
+              const mevcut_skor = analiz.finansal_skor || 60
 
-                {planAcik && (
-                  <div className="animate-fade-in" style={{ marginTop: 20 }}>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-                      <span className="badge badge-primary">
-                        Yöntem: {borcCikisPlan.yontem === 'avalanche' ? 'Avalanche (Yüksek faizden)' : 'Snowball (Küçükten büyüğe)'}
-                      </span>
-                      <span className="badge badge-positive">
-                        Tahmini bitiş: {borcCikisPlan.tahmini_bitis_ay}
-                      </span>
+              const avalanchePlan  = hesaplaBorcPlani(borcListesi, ekstra, 'avalanche')
+              const snowballPlan   = hesaplaBorcPlani(borcListesi, ekstra, 'snowball')
+              const aktifPlan      = planYontem === 'avalanche' ? avalanchePlan : snowballPlan
+              const farkFaiz       = snowballPlan.toplam_faiz - avalanchePlan.toplam_faiz
+
+              return (
+                <div className="card" style={{ padding: 28 }}>
+                  {/* Başlık + toggle */}
+                  <button
+                    onClick={() => setPlanAcik(!planAcik)}
+                    style={{
+                      width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      padding: 0, fontFamily: 'inherit', textAlign: 'left',
+                    }}
+                  >
+                    <div>
+                      <p className="text-tiny" style={{ color: 'var(--color-primary)', marginBottom: 4 }}>STRATEJİ</p>
+                      <h2 className="heading-sm">Borç Çıkış Planı</h2>
                     </div>
+                    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      style={{ transform: planAcik ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform var(--transition-base)', flexShrink: 0 }}>
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
-                      <MiniMetrik etiket="Toplam Borç" deger={paraDuzenle(borcCikisPlan.toplam_borc)} />
-                      <MiniMetrik etiket="Aylık Ekstra Ödeme" deger={paraDuzenle(borcCikisPlan.aylik_ekstra_odeme)} />
-                    </div>
-
-                    {borcCikisPlan.adimlar?.length > 0 && (
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-                          <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>
-                            Ay-Ay Ödeme Planı (Avalanche)
-                          </h3>
-                          <span className="text-tiny">{borcCikisPlan.adimlar.length} ay</span>
-                        </div>
-                        <div style={{
-                          overflowX: 'auto',
-                          maxHeight: 480,
-                          overflowY: 'auto',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: 'var(--radius-md)',
-                        }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                            <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 1 }}>
-                              <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
-                                <Th>Ay</Th>
-                                <Th align="right">Ödeme Tutarı</Th>
-                                <Th align="right">Kalan Borç</Th>
-                                <Th>Bitecek Borç</Th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {borcCikisPlan.adimlar.map((adim, i) => {
-                                const bitiyor = !!adim.bitecek_borc
-                                return (
-                                  <tr key={i} style={{
-                                    borderBottom: '1px solid var(--border-subtle)',
-                                    background: bitiyor ? 'rgba(16, 185, 129, 0.04)' : 'transparent',
-                                  }}>
-                                    <Td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{adim.ay}</Td>
-                                    <Td align="right" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
-                                      {paraDuzenle(adim.odeme_tutari)}
-                                    </Td>
-                                    <Td align="right" style={{
-                                      color: adim.kalan_borc === 0 ? 'var(--color-positive)' : 'var(--text-secondary)',
-                                      fontWeight: adim.kalan_borc === 0 ? 600 : 400,
-                                    }}>
-                                      {paraDuzenle(adim.kalan_borc)}
-                                    </Td>
-                                    <Td>
-                                      {bitiyor ? (
-                                        <span className="badge badge-positive" style={{ fontSize: 10 }}>
-                                          ✓ {adim.bitecek_borc.length > 24
-                                            ? adim.bitecek_borc.slice(0, 24) + '...'
-                                            : adim.bitecek_borc}
-                                        </span>
-                                      ) : (
-                                        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>—</span>
-                                      )}
-                                    </Td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
+                  {planAcik && (
+                    <div className="animate-fade-in" style={{ marginTop: 20 }}>
+                      {/* Yöntem Seçimi */}
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                        {[
+                          { key: 'avalanche', etiket: '⚡ Avalanche', aciklama: 'En yüksek faizden başla' },
+                          { key: 'snowball',  etiket: '⛄ Snowball',  aciklama: 'En küçük borçtan başla' },
+                        ].map(y => (
+                          <button
+                            key={y.key}
+                            onClick={() => setPlanYontem(y.key)}
+                            style={{
+                              padding: '8px 18px', borderRadius: 'var(--radius-sm)',
+                              border: planYontem === y.key
+                                ? '2px solid var(--color-primary)'
+                                : '2px solid var(--border-default)',
+                              background: planYontem === y.key ? 'var(--color-primary-light)' : 'var(--bg-card)',
+                              color: planYontem === y.key ? 'var(--color-primary-dark)' : 'var(--text-secondary)',
+                              fontWeight: planYontem === y.key ? 700 : 500,
+                              fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                              transition: 'all 150ms ease',
+                            }}
+                          >
+                            {y.etiket}
+                          </button>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+
+                      {/* Faiz farkı notu */}
+                      {farkFaiz > 0 && (
+                        <div style={{
+                          marginBottom: 16, padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+                          background: 'var(--color-warning-light)', border: '1px solid var(--color-warning)',
+                          fontSize: 12, color: 'var(--color-warning)',
+                        }}>
+                          💡 Snowball seçersen Avalanche'a göre <strong>{paraDuzenle(farkFaiz)}</strong> fazla faiz ödersin
+                        </div>
+                      )}
+
+                      {/* Metrikler */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
+                        <MiniMetrik etiket="Toplam Borç" deger={paraDuzenle(baslangic_borc)} />
+                        <MiniMetrik etiket="Aylık Ekstra Ödeme" deger={paraDuzenle(ekstra)} />
+                        <MiniMetrik etiket="Toplam Faiz" deger={paraDuzenle(aktifPlan.toplam_faiz)} />
+                        <MiniMetrik etiket="Süre" deger={`${aktifPlan.adimlar.length} ay`} />
+                      </div>
+
+                      {/* Ay-ay tablo */}
+                      {aktifPlan.adimlar.length > 0 && (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>
+                              Ay-Ay Ödeme Planı ({planYontem === 'avalanche' ? 'Avalanche' : 'Snowball'})
+                            </h3>
+                            <span className="text-tiny">{aktifPlan.adimlar.length} ay</span>
+                          </div>
+                          <div style={{
+                            overflowX: 'auto', maxHeight: 480, overflowY: 'auto',
+                            border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)',
+                          }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                              <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 1 }}>
+                                <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                                  <Th>Ay</Th>
+                                  <Th align="right">Ödeme</Th>
+                                  <Th align="right">Kalan Borç</Th>
+                                  <Th align="right">Tahmini Skor</Th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {aktifPlan.adimlar.map((adim, i) => {
+                                  const odendi_oran = baslangic_borc > 0
+                                    ? (baslangic_borc - adim.kalan_borc) / baslangic_borc
+                                    : 0
+                                  const skor_tahmini = Math.min(100, Math.round(mevcut_skor + 25 * odendi_oran))
+                                  const skor_renk = skor_tahmini >= 81 ? 'var(--color-positive)'
+                                    : skor_tahmini >= 61 ? 'var(--color-primary)'
+                                    : skor_tahmini >= 41 ? 'var(--color-warning)'
+                                    : 'var(--color-negative)'
+                                  return (
+                                    <tr key={i} style={{
+                                      borderBottom: '1px solid var(--border-subtle)',
+                                      background: adim.kalan_borc === 0 ? 'rgba(53,107,89,0.04)' : 'transparent',
+                                    }}>
+                                      <Td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{adim.ay}</Td>
+                                      <Td align="right" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+                                        {paraDuzenle(adim.odeme_tutari)}
+                                      </Td>
+                                      <Td align="right" style={{
+                                        color: adim.kalan_borc === 0 ? 'var(--color-positive)' : 'var(--text-secondary)',
+                                        fontWeight: adim.kalan_borc === 0 ? 600 : 400,
+                                      }}>
+                                        {adim.kalan_borc === 0 ? '✓ Bitti' : paraDuzenle(adim.kalan_borc)}
+                                      </Td>
+                                      <Td align="right">
+                                        <span style={{ fontWeight: 600, color: skor_renk }}>{skor_tahmini}</span>
+                                        {i > 0 && skor_tahmini > Math.min(100, Math.round(mevcut_skor + 25 * ((baslangic_borc - aktifPlan.adimlar[i-1].kalan_borc) / (baslangic_borc || 1)))) && (
+                                          <span style={{ fontSize: 10, color: 'var(--color-positive)', marginLeft: 4 }}>▲</span>
+                                        )}
+                                      </Td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </>
         )}
       </div>

@@ -52,6 +52,18 @@ async def oneri_agent_node(state: PipelineState) -> PipelineState:
             borc_cikis_plani = borc_cikis_plani_hesapla(borc_listesi, ekstra, max_ay=24)
             print(f"[Öneri Agent] Borç çıkış planı: {len(borc_cikis_plani['adimlar'])} aylık adım üretildi")
 
+        # Toplam kazanim_tutari hesapla → simülatör için ekstra ödeme önerisi
+        toplam_tasarruf = sum(
+            float(o.get("kazanim_tutari", 0) or 0)
+            for o in oneriler
+        )
+        nakit_akisi = float(snapshot.get("nakit_akisi", 0) or 0)
+        ekstra_odeme_onerisi = max(0.0, toplam_tasarruf + nakit_akisi)
+
+        print(f"[Öneri Agent] Toplam tasarruf önerisi: {toplam_tasarruf:,.0f} TL")
+        print(f"[Öneri Agent] Nakit akışı: {nakit_akisi:,.0f} TL")
+        print(f"[Öneri Agent] Ekstra ödeme önerisi: {ekstra_odeme_onerisi:,.0f} TL")
+
         # Snapshot'ı önerilerle güncelle (Firestore'da)
         ay = snapshot.get("ay", "")
         if ay and user_id:
@@ -60,7 +72,9 @@ async def oneri_agent_node(state: PipelineState) -> PipelineState:
                     user_id=user_id,
                     ay=ay,
                     oneriler=oneriler,
-                    borc_plan=borc_cikis_plani
+                    borc_plan=borc_cikis_plani,
+                    toplam_tasarruf_onerisi=toplam_tasarruf,
+                    ekstra_odeme_onerisi=ekstra_odeme_onerisi,
                 )
             except Exception as firebase_hata:
                 # Firestore güncelleme hatası pipeline'ı durdurmasın

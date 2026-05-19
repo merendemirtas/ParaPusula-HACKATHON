@@ -180,7 +180,9 @@ class FirebaseService:
         user_id: str,
         ay: str,
         oneriler: list,
-        borc_plan: Optional[dict]
+        borc_plan: Optional[dict],
+        toplam_tasarruf_onerisi: float = 0.0,
+        ekstra_odeme_onerisi: float = 0.0,
     ) -> None:
         """
         Snapshot'a öneri ve borç planı bilgisini ekler/günceller.
@@ -190,6 +192,8 @@ class FirebaseService:
             guncelleme_dict = {
                 "oneriler": oneriler,
                 "borc_cikis_plani": borc_plan,
+                "toplam_tasarruf_onerisi": toplam_tasarruf_onerisi,
+                "ekstra_odeme_onerisi": ekstra_odeme_onerisi,
                 "guncelleme_tarihi": datetime.now().isoformat()
             }
 
