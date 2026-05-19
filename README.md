@@ -332,17 +332,7 @@ http://localhost:8000/docs
 
 ---
 
-## 📄 Lisans
-
-Bu proje BTK Akademi Hackathon 2026 kapsamında geliştirilmiştir.
-
----
-
-<div align="center">
-
-**ParaPusula** · BTK Akademi Hackathon 2026
-
-*Finansal özgürlüğe giden yolu birlikte buluyoruz.*
+## Ekran Resimleri
 
 <img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 18 10" src="https://github.com/user-attachments/assets/c251554c-32fe-4c52-8315-cbed11da2e7c" />
 
@@ -362,5 +352,18 @@ Bu proje BTK Akademi Hackathon 2026 kapsamında geliştirilmiştir.
 
 <img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 20 22" src="https://github.com/user-attachments/assets/ef7a9e72-8d08-4672-b188-ec1ce0402aa2" />
 
+---
+
+## 📄 Lisans
+
+Bu proje BTK Akademi Hackathon 2026 kapsamında geliştirilmiştir.
+
+---
+
+<div align="center">
+
+**ParaPusula** · BTK Akademi Hackathon 2026
+
+*Finansal özgürlüğe giden yolu birlikte buluyoruz.*
 
 </div>
