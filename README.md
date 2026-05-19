@@ -344,4 +344,23 @@ Bu proje BTK Akademi Hackathon 2026 kapsamında geliştirilmiştir.
 
 *Finansal özgürlüğe giden yolu birlikte buluyoruz.*
 
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 18 10" src="https://github.com/user-attachments/assets/c251554c-32fe-4c52-8315-cbed11da2e7c" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 18 06" src="https://github.com/user-attachments/assets/727a3fac-3be1-4137-b92a-f7020514b898" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 18 25" src="https://github.com/user-attachments/assets/6fc4952b-86e9-4536-af05-20a8b952c116" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 18 31" src="https://github.com/user-attachments/assets/bb365aba-37ee-4bec-9468-fc3e74303254" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 18 45" src="https://github.com/user-attachments/assets/d8794545-da48-4f02-9d06-41514a97c48c" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 19 12" src="https://github.com/user-attachments/assets/0761a064-0025-4860-86c3-2fcb284120ed" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 19 35" src="https://github.com/user-attachments/assets/0f5d385f-4edf-474a-9940-5127efd9cc0a" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 19 38" src="https://github.com/user-attachments/assets/44697379-5a6c-4d74-93f9-e2c1fae3943e" />
+
+<img width="1710" height="989" alt="Ekran Resmi 2026-05-19 23 20 22" src="https://github.com/user-attachments/assets/ef7a9e72-8d08-4672-b188-ec1ce0402aa2" />
+
+
 </div>
