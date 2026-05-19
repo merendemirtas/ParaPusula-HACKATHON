@@ -1,6 +1,7 @@
 // KARAR: 6-satır grid; Row1=3kolon(Skor|Birikim|Nakit); Row2=2kolon(Gelir|Gider);
 //        Row3=LineChart(3ay,linear,null-slot); Row4=Kıyaslama; Row5=BirikimDetay; Row6=YZÖneriler.
 import React, { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -24,7 +25,7 @@ const paraDuzenle = (sayi) => {
 const AY_KISALT = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara']
 const AY_TAM    = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
 
-const skorRengi    = (s) => s >= 81 ? '#10B981' : s >= 61 ? '#F59E0B' : s >= 41 ? '#F97316' : '#EF4444'
+const skorRengi    = (s) => s >= 81 ? '#0D9488' : s >= 61 ? '#0D9488' : s >= 41 ? '#D97706' : '#E11D48'
 const skorEtiketi  = (s) => s >= 81 ? 'Mükemmel' : s >= 61 ? 'İyi' : s >= 41 ? 'Dikkat' : 'Kritik'
 const skorBadgeCls = (s) => s >= 81 ? 'badge-positive' : s >= 61 ? 'badge-warning' : s >= 41 ? 'badge-warning' : 'badge-negative'
 
@@ -47,7 +48,7 @@ const hedefPct = (h) => {
 }
 
 const GRAD_RENKLER = [
-  'linear-gradient(135deg,#0F4C3A,#167256)',
+  'linear-gradient(135deg,#0D9488,#0F766E)',
   'linear-gradient(135deg,#1E3A8A,#3B82F6)',
   'linear-gradient(135deg,#7C3AED,#A855F7)',
   'linear-gradient(135deg,#B45309,#F59E0B)',
@@ -163,6 +164,7 @@ export default function Dashboard() {
     : null
 
   return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
     <div style={sayfaStil}>
       <div style={konteynerStil}>
         {/* Header */}
@@ -312,6 +314,7 @@ export default function Dashboard() {
         @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
       `}</style>
     </div>
+    </motion.div>
   )
 }
 
@@ -329,7 +332,7 @@ function BirikimHedefiKarti({ hedef, hedefler, hedefIndex, onDetayAc, onBirikimE
   if (!hedef) {
     return (
       <div onClick={onHedefEkle} className="card card-interactive animate-fade-in"
-        style={{ padding: 24, minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(15,76,58,0.02)' }}>
+        style={{ padding: 24, minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(13,148,136,0.02)' }}>
         <span style={{ fontSize: 40 }}>🎯</span>
         <div style={{ textAlign: 'center' }}>
           <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Birikim Hedefi</h3>
@@ -344,7 +347,7 @@ function BirikimHedefiKarti({ hedef, hedefler, hedefIndex, onDetayAc, onBirikimE
   const tahmin = bitisTahmini(hedef)
   const fotograf = hedef.fotograf_url || ''
   const gradIndex = hedefler.indexOf(hedef) % GRAD_RENKLER.length
-  const donutVeri = [{ value: hedef.toplam_birikim || 0, fill: '#10B981' }, { value: Math.max(0, (hedef.hedef_tutar || 0) - (hedef.toplam_birikim || 0)), fill: 'rgba(255,255,255,0.2)' }]
+  const donutVeri = [{ value: hedef.toplam_birikim || 0, fill: '#0D9488' }, { value: Math.max(0, (hedef.hedef_tutar || 0) - (hedef.toplam_birikim || 0)), fill: 'rgba(255,255,255,0.2)' }]
 
   return (
     <div
@@ -415,7 +418,7 @@ function GiderTrendChart({ veri }) {
   const CustomDot = (props) => {
     const { cx, cy, payload } = props
     if (payload?.toplam_gider == null) return null
-    return <circle cx={cx} cy={cy} r={5} fill="#0F4C3A" stroke="#fff" strokeWidth={2} />
+    return <circle cx={cx} cy={cy} r={5} fill="#0D9488" stroke="#fff" strokeWidth={2} />
   }
 
   const CustomTooltip = ({ active, payload }) => {
@@ -453,8 +456,8 @@ function GiderTrendChart({ veri }) {
               <LineChart data={veri} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
                 <defs>
                   <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#10B981" />
-                    <stop offset="100%" stopColor="#EF4444" />
+                    <stop offset="0%" stopColor="#0D9488" />
+                    <stop offset="100%" stopColor="#E11D48" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
@@ -472,7 +475,7 @@ function GiderTrendChart({ veri }) {
                   stroke="url(#lineGrad)"
                   strokeWidth={2.5}
                   dot={<CustomDot />}
-                  activeDot={{ r: 8, fill: '#0F4C3A', stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 8, fill: '#0D9488', stroke: '#fff', strokeWidth: 2 }}
                   connectNulls={false}
                 />
               </LineChart>
@@ -506,7 +509,7 @@ function AylikKarsilastirma({ delta, oncekiAy }) {
 
 function KarsilastirmaMetrik({ etiket, deger, fark, iyi }) {
   return (
-    <div style={{ padding: 14, background: iyi ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)', borderRadius: 'var(--radius-md)', border: `1px solid ${iyi ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'}` }}>
+    <div style={{ padding: 14, background: iyi ? 'rgba(13,148,136,0.04)' : 'rgba(225,29,72,0.04)', borderRadius: 'var(--radius-md)', border: `1px solid ${iyi ? 'rgba(13,148,136,0.12)' : 'rgba(225,29,72,0.12)'}` }}>
       <p className="text-tiny" style={{ margin: '0 0 4px' }}>{etiket}</p>
       <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{deger}</p>
       <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: iyi ? 'var(--color-positive)' : 'var(--color-negative)' }}>{fark}</p>
@@ -529,7 +532,7 @@ function BirikimHedefleriBolum({ userId, hedefler, onHedefEkle, onDetayAc, onGun
       </div>
 
       {hedefler.length === 0 ? (
-        <div onClick={onHedefEkle} className="card card-interactive" style={{ padding: 40, textAlign: 'center', cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(15,76,58,0.02)' }}>
+        <div onClick={onHedefEkle} className="card card-interactive" style={{ padding: 40, textAlign: 'center', cursor: 'pointer', border: '2px dashed var(--border-default)', background: 'rgba(13,148,136,0.02)' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
           <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 600 }}>Birikim hedefi ekle</h3>
           <p className="text-body" style={{ margin: 0 }}>Araba, ev, tatil... Hedefinizi belirleyin, ilerlemenizi takip edin.</p>
@@ -556,7 +559,7 @@ function MiniHedefKarti({ hedef, gradIndex, onClick }) {
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{hedef.ad}</h3>
           <p className="text-small" style={{ margin: '2px 0 0' }}>Hedef: {paraDuzenle(hedef.hedef_tutar)}</p>
         </div>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-positive)', background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: 20 }}>%{pct.toFixed(0)}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#0D9488', background: '#CCFBF1', padding: '2px 8px', borderRadius: 20 }}>%{pct.toFixed(0)}</span>
       </div>
       {/* Mini progress bar */}
       <div style={{ height: 6, background: 'var(--border-subtle)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
@@ -581,7 +584,7 @@ function BirikimDetayModal({ userId, hedefler, onKapat, onGuncelle, onDuzenle, o
   const pct    = hedefPct(aktif)
   const tahmin = bitisTahmini(aktif)
   const donutVeri = [
-    { value: aktif.toplam_birikim || 0,    fill: '#10B981' },
+    { value: aktif.toplam_birikim || 0,    fill: '#0D9488' },
     { value: Math.max(0, (aktif.hedef_tutar || 0) - (aktif.toplam_birikim || 0)), fill: '#F1F5F9' },
   ]
   const fotograf = aktif.fotograf_url || ''
@@ -642,7 +645,7 @@ function BirikimDetayModal({ userId, hedefler, onKapat, onGuncelle, onDuzenle, o
                   { e: 'Kalan',      d: paraDuzenle(Math.max(0, aktif.hedef_tutar - aktif.toplam_birikim)), renk: 'var(--color-negative)' },
                   { e: 'Tahmini Bitiş', d: tahmin || '— Veri yetersiz', renk: 'var(--color-primary)' },
                 ].map(m => (
-                  <div key={m.e} style={{ padding: '10px 12px', background: 'rgba(15,76,58,0.03)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+                  <div key={m.e} style={{ padding: '10px 12px', background: 'rgba(13,148,136,0.03)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
                     <p style={{ margin: 0, fontSize: 11, color: 'var(--text-tertiary)' }}>{m.e}</p>
                     <p style={{ margin: '3px 0 0', fontSize: 14, fontWeight: 700, color: m.renk }}>{m.d}</p>
                   </div>
@@ -898,9 +901,9 @@ function YZOneriler({ oneriler }) {
   const siraliOneriler = oneriler.map(normalize).sort((a, b) => (siralama[a.oncelik] ?? 1) - (siralama[b.oncelik] ?? 1))
 
   const stilMap = {
-    'Yüksek': { bant: '#EF4444', emoji: '🔴', etiket: 'YÜKSEK ÖNCELİK', cls: 'badge-negative' },
-    'Orta':   { bant: '#F59E0B', emoji: '🟡', etiket: 'ORTA ÖNCELİK',   cls: 'badge-warning'  },
-    'Düşük':  { bant: '#10B981', emoji: '🟢', etiket: 'DÜŞÜK ÖNCELİK',  cls: 'badge-positive' },
+    'Yüksek': { bant: '#E11D48', emoji: '🔴', etiket: 'YÜKSEK ÖNCELİK', cls: 'badge-negative', badgeBg: '#FFE4E6', badgeText: '#E11D48' },
+    'Orta':   { bant: '#D97706', emoji: '🟡', etiket: 'ORTA ÖNCELİK',   cls: 'badge-warning',  badgeBg: '#FEF3C7', badgeText: '#D97706' },
+    'Düşük':  { bant: '#0D9488', emoji: '🟢', etiket: 'DÜŞÜK ÖNCELİK',  cls: 'badge-positive', badgeBg: '#CCFBF1', badgeText: '#0D9488' },
   }
 
   return (
@@ -916,7 +919,7 @@ function YZOneriler({ oneriler }) {
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}>
               <button onClick={() => toggle(o.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '20px 24px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', minHeight: 120 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span className={`badge ${stil.cls}`} style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', marginBottom: 8, display: 'inline-block' }}>{stil.emoji} {stil.etiket}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', marginBottom: 8, display: 'inline-block', borderRadius: 20, background: stil.badgeBg, color: stil.badgeText }}>{stil.emoji} {stil.etiket}</span>
                   <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.ana_fikir}</p>
                   {o.kazanim && <p style={{ margin: '8px 0 0', fontSize: 14, fontWeight: 700, color: 'var(--color-positive)' }}>💰 {o.kazanim}</p>}
                 </div>
@@ -936,7 +939,7 @@ function YZOneriler({ oneriler }) {
                     ))}
                   </div>
                   {o.kazanim && (
-                    <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', marginBottom: 16 }}>
+                    <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(13,148,136,0.08)', border: '1px solid rgba(13,148,136,0.2)', marginBottom: 16 }}>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-positive)' }}>✓ Bu öneriyi uygularsan: {o.kazanim}</p>
                     </div>
                   )}
@@ -959,7 +962,7 @@ function MetrikKart({ etiket, deger, renk, yon }) {
     <div className="card card-interactive" style={{ padding: 24 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <p className="text-tiny" style={{ margin: 0 }}>{etiket}</p>
-        <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: yon === 'up' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)', color: renk, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: yon === 'up' ? '#CCFBF1' : '#FFE4E6', color: yon === 'up' ? '#0D9488' : '#E11D48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             {yon === 'up' ? <><path d="M7 17l10-10" /><path d="M8 7h9v9" /></> : <><path d="M17 7L7 17" /><path d="M16 17H7V8" /></>}
           </svg>

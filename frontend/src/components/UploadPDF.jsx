@@ -67,7 +67,9 @@ export default function UploadPDF() {
       setApiTamamlandi(true)
       setDurum('tamamlandi')
       addToast('Analiz hazır!', 'success')
-      setTimeout(() => navigate('/dashboard'), 2000)
+      // KARAR: /insight'a git — "Vay Be" anı gösterilsin;
+      // insight sayfası gosterildi_mi=true ise direkt dashboard'a yönlendirir.
+      setTimeout(() => navigate('/insight'), 1500)
     } catch (err) {
       clearInterval(timerRef.current)
       setDurum('hata')

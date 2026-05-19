@@ -298,6 +298,20 @@ export async function simulatorBuyukKarar(data) {
   return yanit.data
 }
 
+// ─────────────────────────────────────────────
+// Insight — Vay Be Anı
+// ─────────────────────────────────────────────
+
+export async function getInsight(userId) {
+  const yanit = await api.get(`/insight/${userId}`)
+  return yanit.data
+}
+
+export async function markInsightGoruldu(userId) {
+  const yanit = await api.put(`/insight/${userId}/goruldu`)
+  return yanit.data
+}
+
 export async function refreshTCMB() {
   const yanit = await api.get('/tcmb/refresh')
   return yanit.data

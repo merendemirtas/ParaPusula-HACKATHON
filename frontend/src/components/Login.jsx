@@ -151,7 +151,7 @@ function SolPanel() {
       data-login-sol="true"
       className="desktop-only"
       style={{
-        background: 'linear-gradient(135deg, #0F4C3A 0%, #167256 50%, #0A3528 100%)',
+        background: 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)',
         color: '#fff',
         display: 'flex',
         flexDirection: 'column',

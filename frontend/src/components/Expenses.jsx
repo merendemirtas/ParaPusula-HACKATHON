@@ -15,7 +15,7 @@ import { useToast } from '../context/ToastContext.jsx'
 import EmptyState from './EmptyState.jsx'
 
 const RENKLER = [
-  '#0F4C3A', '#167256', '#10B981', '#F59E0B',
+  '#0D9488', '#0F766E', '#14B8A6', '#D97706',
   '#7C3AED', '#EC4899', '#06B6D4', '#84CC16',
   '#0F172A', '#475569',
 ]
@@ -182,7 +182,7 @@ export default function Expenses() {
                 style={{ padding: 20, textAlign: 'left', cursor: 'pointer', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', position: 'relative' }}
               >
                 {gosterTrend && (
-                  <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 12, fontWeight: 700, color: pct > 0 ? 'var(--color-negative)' : 'var(--color-positive)', background: pct > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                  <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 12, fontWeight: 700, color: pct > 0 ? '#E11D48' : '#0D9488', background: pct > 0 ? '#FFE4E6' : '#CCFBF1', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
                     {pct > 0 ? '▲' : '▼'} {Math.abs(pct).toFixed(0)}%
                   </div>
                 )}

@@ -576,3 +576,105 @@ async def abonelik_puani_kaydet(user_id: str, data: dict):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Puan kaydetme hatası: {e}")
+
+
+# ─────────────────────────────────────────────
+# Insight — "Vay Be" Anı
+# ─────────────────────────────────────────────
+
+def _skor_etiketi(skor: int) -> str:
+    if skor >= 80: return "Mükemmel"
+    if skor >= 65: return "İyi"
+    if skor >= 50: return "Dikkat"
+    if skor >= 35: return "Riskli"
+    return "Kritik"
+
+
+@router.get("/insight/{user_id}")
+async def insight_getir(user_id: str):
+    """
+    "Vay Be" anı için kişiselleştirilmiş insight verisi.
+    gosterildi_mi: aynı ay daha önce gösterilmişse True.
+    """
+    try:
+        snapshot = await firebase_service.son_snapshot_oku(user_id)
+        if not snapshot:
+            raise HTTPException(status_code=404, detail="Önce PDF yükleyin.")
+
+        s   = snapshot.model_dump()
+        ay  = s.get("ay", "")
+        gelir       = float(s.get("gelir", 0))
+        gider       = float(s.get("toplam_gider", 0))
+        nakit       = float(s.get("nakit_akisi", 0))
+        skor        = int(s.get("finansal_skor", 0))
+        kategoriler = s.get("kategoriler", [])
+        borclar     = s.get("borc_listesi", [])
+
+        # Kredi ödemeleri oranı
+        kredi_toplam = sum(
+            abs(float(k.get("toplam_tutar", 0))) for k in kategoriler
+            if any(kw in k.get("kategori_adi", "").lower()
+                   for kw in ["kredi", "borç", "taksit", "loan"])
+        )
+        kredi_oran = round(kredi_toplam / gider * 100) if gider > 0 else 0
+
+        # En yüksek gider kategorisi
+        gider_kats = sorted(
+            [k for k in kategoriler if float(k.get("toplam_tutar", 0)) < 0],
+            key=lambda k: abs(float(k.get("toplam_tutar", 0))), reverse=True
+        )
+        en_yuksek = None
+        if gider_kats:
+            k = gider_kats[0]
+            en_yuksek = {"ad": k.get("kategori_adi", ""), "tutar": abs(float(k.get("toplam_tutar", 0)))}
+
+        # Abonelikler
+        abonelikler     = [k for k in kategoriler if k.get("abonelik_mi")]
+        abonelik_sayisi = len(abonelikler)
+        abonelik_toplam = sum(abs(float(k.get("toplam_tutar", 0))) for k in abonelikler)
+
+        # Borçlar ve tahmini aylık faiz
+        toplam_borc  = sum(float(b.get("ana_para", 0)) for b in borclar)
+        aylik_faiz   = 0.0
+        for b in borclar:
+            faiz = b.get("faiz_orani")
+            ana  = float(b.get("ana_para", 0))
+            if faiz and ana > 0:
+                aylik_faiz += ana * (float(faiz) / 100.0 / 12.0)
+        aylik_faiz = round(aylik_faiz)
+
+        # Gösterildi mi? Aynı ayda tekrar yükleme → atla
+        son_ay = await firebase_service.insight_ay_oku(user_id)
+        gosterildi_mi = (son_ay == ay)
+
+        return {
+            "nakit_akisi":           round(nakit),
+            "nakit_akisi_pozitif":   nakit >= 0,
+            "kredi_oran":            kredi_oran,
+            "en_yuksek_kategori":    en_yuksek,
+            "abonelik_sayisi":       abonelik_sayisi,
+            "abonelik_toplam":       round(abonelik_toplam),
+            "toplam_borc":           round(toplam_borc),
+            "aylik_faiz_tahmini":    aylik_faiz,
+            "finansal_skor":         skor,
+            "skor_etiketi":          _skor_etiketi(skor),
+            "gosterildi_mi":         gosterildi_mi,
+            "ay":                    ay,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Insight verisi alınamadı: {e}")
+
+
+@router.put("/insight/{user_id}/goruldu")
+async def insight_goruldu_isaretle(user_id: str):
+    """Kullanıcı 'Anladım' deyince çağrılır — aynı ay tekrar gösterilmez."""
+    try:
+        snapshot = await firebase_service.son_snapshot_oku(user_id)
+        if snapshot:
+            await firebase_service.insight_ay_kaydet(user_id, snapshot.ay)
+        return {"basarili": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Insight işaretlenemedi: {e}")

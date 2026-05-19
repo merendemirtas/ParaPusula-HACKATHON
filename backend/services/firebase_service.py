@@ -439,6 +439,32 @@ class FirebaseService:
             return {}
 
     # ─────────────────────────────────────────────
+    # Insight (Vay Be Anı) Takibi
+    # ─────────────────────────────────────────────
+
+    async def insight_ay_oku(self, user_id: str) -> Optional[str]:
+        """users/{userId}/profile/main → son_insight_ay alanını okur."""
+        try:
+            def _oku():
+                doc = self.db.collection("users").document(user_id)\
+                    .collection("profile").document("main").get()
+                return doc.to_dict().get("son_insight_ay") if doc.exists else None
+            return await asyncio.to_thread(_oku)
+        except Exception:
+            return None
+
+    async def insight_ay_kaydet(self, user_id: str, ay: str) -> None:
+        """users/{userId}/profile/main → son_insight_ay alanını günceller."""
+        try:
+            def _yaz():
+                self.db.collection("users").document(user_id)\
+                    .collection("profile").document("main")\
+                    .set({"son_insight_ay": ay}, merge=True)
+            await asyncio.to_thread(_yaz)
+        except Exception as e:
+            raise RuntimeError(f"Insight ay kaydetme hatası: {e}")
+
+    # ─────────────────────────────────────────────
     # TCMB Cache İşlemleri
     # ─────────────────────────────────────────────
 

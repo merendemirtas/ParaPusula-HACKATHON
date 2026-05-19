@@ -13,17 +13,16 @@ const paraDuzenle = (sayi) => {
 }
 
 const SINIF = {
-  stratejik:     { renk: 'var(--color-positive)', etiket: 'Stratejik',     aciklama: 'Değer yaratan borç — eviniz borçtan hızlı değerleniyor',
-    badgeCls: 'badge-positive', barRenk: '#10B981' },
-  yonetilebilir: { renk: 'var(--color-warning)',  etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
-    badgeCls: 'badge-warning',  barRenk: '#F59E0B' },
-  kritik:        { renk: 'var(--color-negative)', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
-    badgeCls: 'badge-negative', barRenk: '#EF4444' },
-  // Geriye uyumluluk: eski Firestore değerleri
-  gri:  { renk: 'var(--color-warning)',  etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
-    badgeCls: 'badge-warning',  barRenk: '#F59E0B' },
-  kotu: { renk: 'var(--color-negative)', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
-    badgeCls: 'badge-negative', barRenk: '#EF4444' },
+  stratejik:     { renk: '#0F766E', etiket: 'Stratejik',     aciklama: 'Değer yaratan borç — eviniz borçtan hızlı değerleniyor',
+    badgeCls: 'badge-positive', barRenk: '#0D9488' },
+  yonetilebilir: { renk: '#92400E', etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
+    badgeCls: 'badge-warning',  barRenk: '#D97706' },
+  kritik:        { renk: '#9F1239', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
+    badgeCls: 'badge-negative', barRenk: '#E11D48' },
+  gri:  { renk: '#92400E', etiket: 'Yönetilebilir', aciklama: 'Kontrol altında — ödeme planına devam et',
+    badgeCls: 'badge-warning',  barRenk: '#D97706' },
+  kotu: { renk: '#9F1239', etiket: 'Kritik',        aciklama: 'Öncelikli öde — faiz birikimi hızlanıyor',
+    badgeCls: 'badge-negative', barRenk: '#E11D48' },
 }
 
 export default function DebtMap() {
@@ -273,6 +272,49 @@ export default function DebtMap() {
                       </div>
                     )}
 
+                    {/* Toplam Maliyet Analizi — faiz biliniyorsa göster */}
+                    {borc.faiz_orani > 0 && (() => {
+                      // KARAR: Amortizasyon formülüyle gerçek kalan taksit sayısını hesapla.
+                      // kalan_taksit=24 bizim tahminimiz; faiz+ödeme bilinince doğruyu buluruz.
+                      const r = borc.faiz_orani / 12 / 100
+                      const P = borc.ana_para
+                      const M = borc.aylik_odeme
+                      let kalanAy = borc.kalan_taksit
+                      if (r > 0 && M > P * r) {
+                        kalanAy = Math.ceil(-Math.log(1 - (P * r) / M) / Math.log(1 + r))
+                      }
+                      const kalanToplam = Math.round(M * kalanAy)
+                      const kalanFaiz   = Math.max(0, kalanToplam - Math.round(P))
+                      return (
+                        <div style={{
+                          borderTop: '1px solid var(--border-subtle)',
+                          marginTop: 16, paddingTop: 16, marginBottom: 12,
+                        }}>
+                          <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700,
+                            color: 'var(--text-tertiary)', letterSpacing: '.06em',
+                            textTransform: 'uppercase' }}>
+                            Toplam Maliyet Analizi
+                          </p>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
+                            <MalivetSatir etiket="Kalan Ödemeler" deger={`${new Intl.NumberFormat('tr-TR').format(kalanToplam)} ₺`} />
+                            <MalivetSatir etiket="Ana Para" deger={`${new Intl.NumberFormat('tr-TR').format(Math.round(P))} ₺`} />
+                            <div title="Bu parayı başka bir yere yatırsaydınız, bu kadar getiri elde edebilirdiniz.">
+                              <MalivetSatir
+                                etiket="Faiz Maliyeti (?)"
+                                deger={`${new Intl.NumberFormat('tr-TR').format(kalanFaiz)} ₺`}
+                                vurgu
+                              />
+                            </div>
+                            <MalivetSatir
+                              etiket={`${kalanAy} ay kaldı`}
+                              deger={`~${Math.ceil(kalanAy / 12)} yıl`}
+                              kucuk
+                            />
+                          </div>
+                        </div>
+                      )
+                    })()}
+
                     {/* Progress bar */}
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -420,21 +462,21 @@ function SiniflandirmaKutusu({ tcmb }) {
 
   const siniflar = [
     {
-      renk: '#10B981', bg: 'rgba(16,185,129,0.10)',
+      renk: '#0F766E', bg: '#CCFBF1',
       baslik: 'STRATEJİK',
       alt: `Konut kredisi + Faiz < KFE (%${kfe.toFixed(1)})`,
       aciklama: 'Değer yaratan borç',
       ipucu: 'Eviniz KFE kadar değerleniyor; kredinizin faizi bu değerlenmeden az — borçlanma size net servet yaratıyor.',
     },
     {
-      renk: '#F59E0B', bg: 'rgba(245,158,11,0.10)',
+      renk: '#92400E', bg: '#FEF3C7',
       baslik: 'YÖNETİLEBİLİR',
       alt: `Faiz < TÜFE (%${tufe.toFixed(1)})`,
       aciklama: 'Enflasyon borcu eritiyor',
       ipucu: 'Faiz oranınız enflasyonun altında — paranın satın alma gücü düşerken borcunuz görece küçülüyor.',
     },
     {
-      renk: '#EF4444', bg: 'rgba(239,68,68,0.10)',
+      renk: '#9F1239', bg: '#FFE4E6',
       baslik: 'KRİTİK',
       alt: `Faiz ≥ TÜFE (%${tufe.toFixed(1)})`,
       aciklama: 'Öncelikli öde',
@@ -522,7 +564,7 @@ function TcmbMetrik({ etiket, deger, alt, fallback }) {
       <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         {etiket}
       </p>
-      <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
+      <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0D9488' }}>
         {deger}
         {alt && <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 2 }}>{alt}</span>}
         {fallback && <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 4 }}>(tahmini)</span>}
@@ -536,6 +578,20 @@ function MetrikKart({ etiket, deger, renk }) {
     <div className="card" style={{ padding: 20 }}>
       <p className="text-tiny" style={{ margin: 0, marginBottom: 8 }}>{etiket}</p>
       <div className="heading-md" style={{ color: renk, fontWeight: 700 }}>{deger}</div>
+    </div>
+  )
+}
+
+function MalivetSatir({ etiket, deger, vurgu, kucuk }) {
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <p style={{ margin: 0, fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 500 }}>{etiket}</p>
+      <p style={{
+        margin: 0,
+        fontSize: kucuk ? 12 : 14,
+        fontWeight: vurgu ? 700 : 600,
+        color: vurgu ? 'var(--color-negative)' : 'var(--text-primary)',
+      }}>{deger}</p>
     </div>
   )
 }

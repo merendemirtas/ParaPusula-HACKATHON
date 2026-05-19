@@ -1,5 +1,6 @@
 // KARAR: Sticky input alt bar; auto-scroll smooth; ilk açılışta karşılama + chip sorular.
 import React, { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { chat } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -76,11 +77,16 @@ export default function ChatAssistant() {
   const ilkAcilis = mesajlar.length === 1
 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 64px)',
-      background: 'var(--bg-page)',
-      display: 'flex', flexDirection: 'column',
-    }}>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      style={{
+        minHeight: 'calc(100vh - 64px)',
+        background: '#F1F5F9',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
       {/* Sticky header */}
       <div className="glass" style={{
         position: 'sticky', top: 64, zIndex: 50,
@@ -111,7 +117,7 @@ export default function ChatAssistant() {
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
               <Avatar tip="asistan" />
               <div style={{
-                background: 'var(--bg-surface)',
+                background: '#F1F5F9',
                 borderRadius: '18px 18px 18px 4px',
                 padding: '14px 18px',
                 boxShadow: 'var(--shadow-sm)',
@@ -177,7 +183,10 @@ export default function ChatAssistant() {
                 resize: 'none', minHeight: 48, maxHeight: 140,
                 padding: '14px 16px', borderRadius: 'var(--radius-lg)',
                 width: '100%',
+                background: '#FFFFFF',
                 borderColor: giris.length > MAX_KARAKTER ? 'var(--color-negative)' : undefined,
+                '--input-focus-border': '#0D9488',
+                '--input-focus-shadow': '0 0 0 3px rgba(13,148,136,0.15)',
               }}
             />
             {giris.length > 4000 && (
@@ -197,6 +206,8 @@ export default function ChatAssistant() {
             style={{
               width: 48, height: 48, padding: 0, borderRadius: 'var(--radius-lg)',
               flexShrink: 0,
+              background: '#0D9488',
+              '--btn-hover-bg': '#0F766E',
             }}
             aria-label="Gönder"
           >
@@ -217,7 +228,7 @@ export default function ChatAssistant() {
           30% { opacity: 1; transform: translateY(-4px); }
         }
       `}</style>
-    </div>
+    </motion.div>
   )
 }
 
@@ -226,7 +237,7 @@ function Avatar({ tip }) {
     return (
       <div style={{
         width: 36, height: 36, borderRadius: '50%',
-        background: 'var(--color-primary)', color: '#fff',
+        background: '#0D9488', color: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
       }}>
@@ -261,8 +272,8 @@ function Balon({ mesaj }) {
           borderRadius: ben ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
           background: mesaj.hata
             ? 'rgba(239,68,68,0.06)'
-            : ben ? 'var(--color-primary)' : 'var(--bg-surface)',
-          color: mesaj.hata ? '#B91C1C' : ben ? '#fff' : 'var(--text-primary)',
+            : ben ? '#1E293B' : '#F1F5F9',
+          color: mesaj.hata ? '#B91C1C' : ben ? '#fff' : '#1E293B',
           fontSize: 14, lineHeight: 1.55,
           boxShadow: ben ? 'none' : 'var(--shadow-sm)',
           border: ben ? 'none' : (mesaj.hata ? '1px solid rgba(239,68,68,0.2)' : '1px solid var(--border-subtle)'),

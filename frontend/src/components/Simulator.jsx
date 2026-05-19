@@ -19,11 +19,11 @@ function ayEtiketi(indexSifirTabanli) {
 }
 
 const SINIF_BADGE = {
-  stratejik:     { bg: 'rgba(16,185,129,.12)', color: '#10B981', etiket: 'Stratejik' },
-  yonetilebilir: { bg: 'rgba(245,158,11,.12)', color: '#F59E0B', etiket: 'Yönetilebilir' },
-  kritik:        { bg: 'rgba(239,68,68,.12)',  color: '#EF4444', etiket: 'Kritik' },
-  gri:           { bg: 'rgba(245,158,11,.12)', color: '#F59E0B', etiket: 'Yönetilebilir' },
-  kotu:          { bg: 'rgba(239,68,68,.12)',  color: '#EF4444', etiket: 'Kritik' },
+  stratejik:     { bg: '#CCFBF1', color: '#0F766E', etiket: 'Stratejik' },
+  yonetilebilir: { bg: '#FEF3C7', color: '#92400E', etiket: 'Yönetilebilir' },
+  kritik:        { bg: '#FFE4E6', color: '#9F1239', etiket: 'Kritik' },
+  gri:           { bg: '#FEF3C7', color: '#92400E', etiket: 'Yönetilebilir' },
+  kotu:          { bg: '#FFE4E6', color: '#9F1239', etiket: 'Kritik' },
 }
 
 const SABLONLAR = [
@@ -286,7 +286,7 @@ function Tab1Hizlandirma({ userId }) {
 
         {hata && (
           <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(239,68,68,.08)',
-            border: '1px solid rgba(239,68,68,.2)', borderRadius: 10, color: '#EF4444', fontSize: 14 }}>
+            border: '1px solid rgba(239,68,68,.2)', borderRadius: 10, color: '#E11D48', fontSize: 14 }}>
             {hata}
           </div>
         )}
@@ -330,9 +330,9 @@ function Tab1Hizlandirma({ userId }) {
                   formatter={v => v === 'mevcut' ? 'Mevcut Plan' : 'Hızlandırılmış Plan'}
                   wrapperStyle={{ fontSize: 13 }}
                 />
-                <Line type="monotone" dataKey="mevcut" stroke="#EF4444" strokeWidth={2.5}
+                <Line type="monotone" dataKey="mevcut" stroke="#E11D48" strokeWidth={2.5}
                   dot={false} name="mevcut" />
-                <Line type="monotone" dataKey="hizli"  stroke="#10B981" strokeWidth={2.5}
+                <Line type="monotone" dataKey="hizli"  stroke="#0D9488" strokeWidth={2.5}
                   dot={false} name="hizli" />
               </LineChart>
             </ResponsiveContainer>
@@ -343,22 +343,22 @@ function Tab1Hizlandirma({ userId }) {
             <SonucKart
               etiket="Erken Bitiş"
               deger={`${sonuc.ay_farki} ay önce`}
-              renk="#10B981"
+              renk="#0D9488"
               icon="⏱"
             />
             <SonucKart
               etiket="Faiz Tasarrufu"
               deger={para(sonuc.tasarruf)}
-              renk="#10B981"
+              renk="#0D9488"
               icon="💰"
             />
             <div className="card" style={{ padding: 20 }}>
               <p className="text-tiny" style={{ marginBottom: 8 }}>Toplam Ödeme Farkı</p>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
-                Mevcut: <strong style={{ color: '#EF4444' }}>{para(sonuc.mevcut_toplam_odeme)}</strong>
+                Mevcut: <strong style={{ color: '#E11D48' }}>{para(sonuc.mevcut_toplam_odeme)}</strong>
               </p>
               <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-                Yeni: <strong style={{ color: '#10B981' }}>{para(sonuc.hizli_toplam_odeme)}</strong>
+                Yeni: <strong style={{ color: '#0D9488' }}>{para(sonuc.hizli_toplam_odeme)}</strong>
               </p>
             </div>
           </div>
@@ -390,15 +390,15 @@ function Tab1Hizlandirma({ userId }) {
                         background: hizliBitti ? 'rgba(16,185,129,.04)' : 'transparent',
                       }}>
                         <td style={{ padding: '11px 14px', fontWeight: 500 }}>{satir.ay}</td>
-                        <td style={{ padding: '11px 14px', textAlign: 'right', color: '#EF4444', fontWeight: 500 }}>
+                        <td style={{ padding: '11px 14px', textAlign: 'right', color: '#E11D48', fontWeight: 500 }}>
                           {para(satir.mevcut)}
                         </td>
                         <td style={{ padding: '11px 14px', textAlign: 'right',
-                          color: hizliBitti ? '#10B981' : 'var(--text-secondary)', fontWeight: hizliBitti ? 600 : 400 }}>
+                          color: hizliBitti ? '#0D9488' : 'var(--text-secondary)', fontWeight: hizliBitti ? 600 : 400 }}>
                           {satir.hizli === 0 ? '✓ Tamamlandı' : para(satir.hizli)}
                         </td>
                         <td style={{ padding: '11px 14px', textAlign: 'right',
-                          color: fark > 0 ? '#10B981' : 'var(--text-tertiary)', fontWeight: 500 }}>
+                          color: fark > 0 ? '#0D9488' : 'var(--text-tertiary)', fontWeight: 500 }}>
                           {fark > 0 ? `-${para(fark)}` : '—'}
                         </td>
                       </tr>
@@ -421,11 +421,11 @@ function Tab1Hizlandirma({ userId }) {
           {/* Gemini yorumu */}
           {sonuc.gemini_yorum && (
             <div style={{
-              border: '1.5px solid #10B981', borderRadius: 14,
+              border: '1.5px solid #0D9488', borderRadius: 14,
               padding: '20px 24px', background: 'rgba(16,185,129,.06)',
             }}>
               <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700,
-                color: '#10B981', letterSpacing: '.04em' }}>
+                color: '#0D9488', letterSpacing: '.04em' }}>
                 ✨ YZ YORUMU
               </p>
               <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: 'var(--text-primary)' }}>
@@ -506,7 +506,7 @@ function Tab2BuyukKarar({ userId }) {
         />
         {hata && (
           <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(239,68,68,.08)',
-            border: '1px solid rgba(239,68,68,.2)', borderRadius: 8, color: '#EF4444', fontSize: 13 }}>
+            border: '1px solid rgba(239,68,68,.2)', borderRadius: 8, color: '#E11D48', fontSize: 13 }}>
             {hata}
           </div>
         )}
@@ -605,7 +605,7 @@ function Tab2BuyukKarar({ userId }) {
                               : para(simdi)}
                           </td>
                           <td style={{ padding: '13px 0', textAlign: 'right',
-                            color: degisti ? (iyiMi ? '#10B981' : '#EF4444') : 'var(--text-secondary)',
+                            color: degisti ? (iyiMi ? '#0D9488' : '#E11D48') : 'var(--text-secondary)',
                             fontWeight: degisti ? 600 : 400 }}>
                             {etiket === 'Nakit Akışı'
                               ? `${sonra >= 0 ? '+' : ''}${para(sonra)}`

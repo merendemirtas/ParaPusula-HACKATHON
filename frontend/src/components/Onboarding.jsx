@@ -277,7 +277,7 @@ export default function Onboarding() {
 
 const sayfaStil = {
   minHeight: '100vh',
-  background: 'linear-gradient(135deg, #0A3528 0%, #0F4C3A 50%, #167256 100%)',
+  background: 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
